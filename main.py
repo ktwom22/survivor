@@ -112,6 +112,17 @@ def get_roster_data(roster):
 
 
 # --- ROUTES ---
+@app.before_request
+def setup_database():
+    # This checks if we've already initialized this server instance
+    if not hasattr(app, "_database_initialized"):
+        with app.app_context():
+            db.create_all()  # Creates User, Survivor, League tables in Postgres
+            # Only sync if database is empty to prevent slow startups
+            if Survivor.query.count() == 0:
+                sync_players()
+        app._database_initialized = True
+
 @app.route('/')
 def home():
     leagues = []
