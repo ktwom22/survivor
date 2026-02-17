@@ -12,9 +12,13 @@
                     {{ e.user|upper }}
                     {% if e.user == session.username %}<span class="x-small text-white-50">(YOU)</span>{% endif %}
                 </span>
-                <span class="fw-900 {% if e.user == target_username %}text-accent{% else %}text-white-50{% endif %}">
-                    {{ e.score }}
-                </span>
+                {% if e.is_drafting %}
+                    <span class="badge bg-secondary x-small opacity-50">DRAFTING</span>
+                {% else %}
+                    <span class="fw-900 {% if e.user == target_username %}text-accent{% else %}text-white-50{% endif %}">
+                        {{ e.score }}
+                    </span>
+                {% endif %}
             </a>
             {% endfor %}
         </div>
@@ -29,7 +33,8 @@
     </div>
 
     <div class="col-md-9">
-        {% if my_tribe %}
+        {# SAFETY CHECK: Only show roster if at least one captain is selected #}
+        {% if my_tribe and my_tribe.cap1 %}
             <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-secondary pb-3">
                 <div>
                     <h2 class="fw-900 uppercase m-0">
@@ -40,6 +45,7 @@
                 <div class="text-end">
                     <div class="small fw-900 text-white-50 uppercase">Total Score</div>
                     {% set ns = namespace(total=0) %}
+                    {# Calculation only runs because we confirmed cap1 exists #}
                     {% set ns.total = (my_tribe.cap1.points*2) + (my_tribe.cap2.points*1.5) + (my_tribe.cap3.points*1.25) %}
                     {% for p in my_tribe.regs %}{% set ns.total = ns.total + p.points %}{% endfor %}
                     <h1 class="fw-900 m-0 display-4 text-accent">{{ ns.total|round(1) }}</h1>
@@ -90,6 +96,7 @@
                 </div>
             </div>
 
+        {# Show Draft form if it's the current user and they haven't finished #}
         {% elif target_username == session.username %}
             <div class="pro-card border-accent p-4 shadow-lg">
                 <div class="mb-4 text-center">
@@ -130,10 +137,8 @@
                                     <div class="position-relative overflow-hidden" style="background: #111;">
                                         <img src="{{ p.image_url }}" class="img-fluid w-100"
                                              style="height: 200px; object-fit: cover; object-position: top; transition: transform 0.5s ease;">
-
                                         <div class="points-tag">{{ p.points }} PTS</div>
                                         <div class="season-tag">S{{ p.season }}</div>
-
                                         <div class="detail-overlay p-2">
                                             <p class="x-small text-white m-0 lh-sm">{{ p.details[:100] }}...</p>
                                             <a href="{{ url_for('player_profile', player_id=p.id) }}" target="_blank" class="btn btn-accent btn-sm py-0 px-2 mt-1 fw-900" style="font-size: 0.6rem;">BIO &rarr;</a>
@@ -147,14 +152,13 @@
                             {% endfor %}
                         </div>
                     </div>
-
                     <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 3 Regulars to Lock In 🔒</button>
                 </form>
             </div>
         {% else %}
             <div class="pro-card border-secondary text-center py-5">
-                <h3 class="fw-900 text-white-50 uppercase ls-2 mb-3">No Roster Found</h3>
-                <p class="text-white-50 mb-4">{{ target_username }} hasn't locked in their tribe yet.</p>
+                <h3 class="fw-900 text-white-50 uppercase ls-2 mb-3">Draft Pending</h3>
+                <p class="text-white-50 mb-4">{{ target_username }} is still assembling their tribe.</p>
                 <a href="{{ url_for('league_dashboard', code=league.invite_code) }}" class="btn btn-accent fw-900 px-5">Back to My Tribe</a>
             </div>
         {% endif %}
@@ -164,7 +168,6 @@
 <style>
     .transition { transition: all 0.2s ease; }
     .transition:hover { border-bottom-color: var(--accent) !important; padding-left: 8px !important; }
-
     .points-tag, .season-tag {
         position: absolute; background: rgba(0,0,0,0.85); color: white;
         font-size: 0.6rem; padding: 2px 6px; font-weight: 900; border-radius: 2px;
@@ -172,7 +175,6 @@
     }
     .points-tag { top: 8px; right: 8px; color: var(--accent); border: 1px solid var(--accent); }
     .season-tag { top: 8px; left: 8px; border: 1px solid rgba(255,255,255,0.2); }
-
     .detail-overlay {
         position: absolute; bottom: 0; left: 0; right: 0;
         background: linear-gradient(transparent, rgba(0,0,0,0.95) 40%);
@@ -180,16 +182,13 @@
         overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
         z-index: 3;
     }
-
     .player-card-label:hover .detail-overlay { height: 100%; }
     .player-card-label:hover img { transform: scale(1.05); }
-
     .btn-check:checked + .player-card-label {
         border-color: var(--accent) !important;
         box-shadow: 0 0 20px rgba(254, 215, 0, 0.3);
     }
     .btn-check:checked + .player-card-label img { filter: saturate(1.2) brightness(1.1); }
-
     .form-select { border-radius: 0; border-width: 2px; }
     .form-select:focus { box-shadow: none; border-color: var(--accent); }
 </style>
@@ -209,7 +208,6 @@
                 btn.classList.remove('btn-secondary', 'opacity-50');
                 btn.classList.add('btn-accent');
                 btn.innerText = "LOCK IN TRIBE 🔒";
-                // Disable others
                 checks.forEach(c => { if(!c.checked) c.disabled = true; });
             } else {
                 btn.disabled = true;
