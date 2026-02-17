@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-6 text-center">
+        <div class="pro-card border-accent p-5">
+            <div class="display-1 text-accent mb-3">🔥</div>
+            <h2 class="fw-900 uppercase ls-2">Expedition Established</h2>
+            <p class="text-white-50 mb-4 small">Your league is ready. Share the code below with your friends. You can come back and draft your tribe whenever you're ready.</p>
+
+            <div class="bg-black border border-secondary p-4 rounded mb-4">
+                <span class="x-small fw-900 text-white-50 uppercase d-block mb-2">Invite Code</span>
+                <h1 class="display-3 fw-900 text-white ls-2 m-0" id="inviteCode">{{ league.invite_code }}</h1>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button onclick="shareLeague()" class="btn btn-accent fw-900 py-3">
+                    INVITE TRIBES (SHARE) 📲
+                </button>
+                <a href="{{ url_for('league_dashboard', code=league.invite_code) }}" class="btn btn-outline-light fw-900 py-3">
+                    GO TO DASHBOARD
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function shareLeague() {
+    const code = document.getElementById('inviteCode').innerText;
+    const shareData = {
+        title: 'Survivor 50 Fantasy League',
+        text: `Join my Survivor 50 Fantasy League! Use invite code: ${code}`,
+        url: window.location.origin
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData)
+            .then(() => console.log('Shared successfully'))
+            .catch((err) => console.log('Error sharing:', err));
+    } else {
+        // Fallback for desktop browsers
+        navigator.clipboard.writeText(`Join my Survivor Fantasy League! Code: ${code}`);
+        alert("Invite code copied to clipboard!");
+    }
+}
+</script>
+{% endblock %}

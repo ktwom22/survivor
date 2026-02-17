@@ -189,6 +189,11 @@ def logout():
     return redirect(url_for('home'))
 
 
+@app.route('/league-created/<code>')
+def league_success(code):
+    league = League.query.filter_by(invite_code=code).first_or_404()
+    return render_template('league_success.html', league=league)
+
 @app.route('/create_league', methods=['POST'])
 def create_league():
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -196,8 +201,8 @@ def create_league():
     new_l = League(name=request.form.get('league_name', 'New League'), invite_code=code)
     db.session.add(new_l)
     db.session.commit()
-    return redirect(url_for('league_dashboard', code=code))
-
+    # Change redirect to the success page instead of dashboard
+    return redirect(url_for('league_success', code=code))
 
 @app.route('/join_league', methods=['POST'])
 def join_league():
