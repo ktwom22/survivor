@@ -125,13 +125,15 @@ def setup_database():
 
 @app.route('/')
 def home():
+    all_cast = Survivor.query.all()  # <--- Added this line
     leagues = []
     if 'user_id' in session:
         my_rosters = Roster.query.filter_by(user_id=session['user_id']).all()
         league_ids = [r.league_id for r in my_rosters]
-        leagues = League.query.filter(League.id.in_(league_ids)).all()
-    return render_template('home.html', user_leagues=leagues)
-
+        if league_ids:
+            leagues = League.query.filter(League.id.in_(league_ids)).all()
+    # Added cast=all_cast here
+    return render_template('home.html', user_leagues=leagues, cast=all_cast)
 
 @app.route('/player/<int:player_id>')
 def player_profile(player_id):
