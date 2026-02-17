@@ -194,22 +194,39 @@ def league_success(code):
     league = League.query.filter_by(invite_code=code).first_or_404()
     return render_template('league_success.html', league=league)
 
+
 @app.route('/create_league', methods=['POST'])
 def create_league():
     if 'user_id' not in session: return redirect(url_for('login'))
+
     code = str(uuid.uuid4())[:6].upper()
     new_l = League(name=request.form.get('league_name', 'New League'), invite_code=code)
     db.session.add(new_l)
+    db.session.flush()  # This gets us the new_l.id before the final commit
+
+    # Create an empty roster so the league shows up on the home page immediately
+    placeholder_roster = Roster(league_id=new_l.id, user_id=session['user_id'])
+    db.session.add(placeholder_roster)
+
     db.session.commit()
-    # Change redirect to the success page instead of dashboard
     return redirect(url_for('league_success', code=code))
+
 
 @app.route('/join_league', methods=['POST'])
 def join_league():
     if 'user_id' not in session: return redirect(url_for('login'))
     code = request.form.get('invite_code', '').upper().strip()
     l = League.query.filter_by(invite_code=code).first()
-    if l: return redirect(url_for('league_dashboard', code=code))
+
+    if l:
+        # Check if they already have a roster in this league
+        existing = Roster.query.filter_by(league_id=l.id, user_id=session['user_id']).first()
+        if not existing:
+            new_r = Roster(league_id=l.id, user_id=session['user_id'])
+            db.session.add(new_r)
+            db.session.commit()
+        return redirect(url_for('league_dashboard', code=code))
+
     flash("League not found.")
     return redirect(url_for('home'))
 
@@ -260,24 +277,23 @@ def league_dashboard(code):
 def draft(code):
     if 'user_id' not in session: return redirect(url_for('login'))
     league = League.query.filter_by(invite_code=code).first_or_404()
-    existing = Roster.query.filter_by(league_id=league.id, user_id=session['user_id']).first()
-    if existing: return redirect(url_for('league_dashboard', code=code))
 
-    try:
-        new_r = Roster(
-            league_id=league.id,
-            user_id=session['user_id'],
-            cap1_id=int(request.form.get('cap1')) if request.form.get('cap1') else None,
-            cap2_id=int(request.form.get('cap2')) if request.form.get('cap2') else None,
-            cap3_id=int(request.form.get('cap3')) if request.form.get('cap3') else None,
-            regular_ids=",".join(request.form.getlist('regs'))
-        )
-        db.session.add(new_r)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    # Look for the placeholder roster we created earlier
+    r = Roster.query.filter_by(league_id=league.id, user_id=session['user_id']).first()
+
+    if r:
+        try:
+            r.cap1_id = int(request.form.get('cap1'))
+            r.cap2_id = int(request.form.get('cap2'))
+            r.cap3_id = int(request.form.get('cap3'))
+            r.regular_ids = ",".join(request.form.getlist('regs'))
+            db.session.commit()
+            flash("Tribe locked in!")
+        except Exception as e:
+            db.session.rollback()
+            flash("Error saving draft.")
+
     return redirect(url_for('league_dashboard', code=code))
-
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
