@@ -295,7 +295,7 @@ def admin_scoring():
     if not session.get('admin_authenticated'):
         # If they are submitting the password via the gatekeeper form
         if request.method == 'POST' and request.form.get('admin_pw'):
-            if request.form.get('admin_pw') == os.getenv("ADMIN_PASSWORD", "survivor_secret_123"):
+            if request.form.get('admin_pw') == os.getenv("ADMIN_PASSWORD", "JeffP"):
                 session['admin_authenticated'] = True
                 return redirect(url_for('admin_scoring'))
             else:
