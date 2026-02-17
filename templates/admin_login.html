@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+    <div class="pro-card p-5 border-accent text-center" style="max-width: 400px; width: 100%;">
+        <h2 class="fw-900 uppercase text-accent mb-4">Admin Access</h2>
+        <p class="text-white-50 small mb-4">Please enter the master password to manage scoring.</p>
+
+        <form method="POST">
+            <input type="password" name="admin_pw" class="form-control bg-black text-white border-secondary mb-3 text-center" placeholder="Password" autofocus>
+            <button type="submit" class="btn btn-accent w-100 fw-900 uppercase ls-2">Unlock Portal 🔒</button>
+        </form>
+
+        <a href="{{ url_for('home') }}" class="btn btn-link btn-sm mt-3 text-white-50 text-decoration-none small">Return Home</a>
+    </div>
+</div>
+{% endblock %}
