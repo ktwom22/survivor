@@ -135,12 +135,23 @@ def home():
 
 @app.route('/player/<int:player_id>')
 def player_profile(player_id):
-    player_obj = db.session.get(Survivor, player_id)
-    if not player_obj:
+    # Get the survivor
+    p_obj = db.session.get(Survivor, player_id)
+    if not p_obj:
         flash("Player not found.")
         return redirect(url_for('home'))
-    # Change 'player=player_obj' to 'p=player_obj'
-    return render_template('player_profile.html', p=player_obj)
+
+    # Calculate the 'totals' that your HTML is looking for
+    totals = {
+        'surv': sum(s.surv for s in p_obj.stats),
+        'imm': sum(s.imm for s in p_obj.stats),
+        'idl': sum(s.idl for s in p_obj.stats),
+        'soc': sum(s.soc for s in p_obj.stats),
+        'pnl': sum(s.pnl for s in p_obj.stats)
+    }
+
+    # Pass BOTH 'p' and 'totals' to the template
+    return render_template('player_profile.html', p=p_obj, totals=totals)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
