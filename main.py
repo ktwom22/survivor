@@ -144,13 +144,24 @@ def player_profile(player_id):
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        hashed_pw = generate_password_hash(request.form['password'], method='pbkdf2:sha256')
-        new_u = User(username=request.form['username'], email=request.form['email'], password=hashed_pw)
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
+        new_u = User(username=username, email=email, password=hashed_pw)
         try:
             db.session.add(new_u)
             db.session.commit()
-            return redirect(url_for('login'))
-        except:
+
+            # --- AUTO LOGIN START ---
+            session['user_id'] = new_u.id
+            session['username'] = new_u.username
+            # --- AUTO LOGIN END ---
+
+            flash("Account created and logged in!")
+            return redirect(url_for('home'))
+        except Exception as e:
             db.session.rollback()
             flash("Username or Email already exists.")
     return render_template('signup.html')
@@ -159,11 +170,19 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u = User.query.filter_by(email=request.form['email']).first()
-        if u and check_password_hash(u.password, request.form['password']):
-            session['user_id'], session['username'] = u.id, u.username
+        # This variable now represents whatever they typed in the first box
+        login_input = request.form.get('email')  # Usually the 'name' attribute in your HTML
+        password = request.form.get('password')
+
+        # Check for user by email OR by username
+        u = User.query.filter((User.email == login_input) | (User.username == login_input)).first()
+
+        if u and check_password_hash(u.password, password):
+            session['user_id'] = u.id
+            session['username'] = u.username
             return redirect(url_for('home'))
-        flash("Invalid credentials.")
+
+        flash("Invalid username/email or password.")
     return render_template('login.html')
 
 
