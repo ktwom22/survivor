@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-10 text-center py-5">
+        <h1 class="display-1 fw-900 uppercase ls-2 mb-2" style="letter-spacing: 5px;">
+            OUTWIT <span class="text-accent">OUTPLAY</span> OUTLAST
+        </h1>
+        <p class="lead text-white-50 fw-bold uppercase ls-2 mb-5">Survivor 50 Fantasy League</p>
+
+        <hr class="border-secondary opacity-25 mb-5">
+
+        <div class="row g-4 text-start">
+            <div class="col-md-6">
+                <div class="pro-card border-ocean h-100" style="border-top: 4px solid var(--ocean) !important;">
+                    <h4 class="fw-900 uppercase ls-1 mb-4">My Active Tribes</h4>
+                    {% if user_leagues %}
+                        {% for l in user_leagues %}
+                        <div class="d-flex justify-content-between align-items-center p-3 border border-secondary mb-3 rounded hover-glow">
+                            <div>
+                                <h5 class="fw-900 m-0 text-white">{{ l.name|upper }}</h5>
+                                <small class="text-white-50 uppercase fw-bold" style="font-size: 0.65rem;">Code: {{ l.invite_code }}</small>
+                            </div>
+                            <a href="{{ url_for('league_dashboard', code=l.invite_code) }}" class="btn btn-ocean btn-sm fw-900 px-4">ENTER</a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-white-50 small">You haven't joined any leagues yet. Grab an invite code or start your own below.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="pro-card border-accent h-100" style="border-top: 4px solid var(--accent) !important;">
+                    <h4 class="fw-900 uppercase ls-1 mb-4 text-accent">New Expedition</h4>
+
+                    <form action="{{ url_for('join_league') }}" method="POST" class="mb-4">
+                        <label class="x-small fw-900 uppercase text-white-50 mb-1">Have an Invite Code?</label>
+                        <div class="input-group">
+                            <input type="text" name="invite_code" class="form-control bg-black border-secondary text-white fw-900" placeholder="XXXXXX" required>
+                            <button class="btn btn-accent fw-900 px-4" type="submit">JOIN</button>
+                        </div>
+                    </form>
+
+                    <div class="text-center my-3">
+                        <span class="x-small fw-900 text-white-50 uppercase">— OR —</span>
+                    </div>
+
+                    <form action="{{ url_for('create_league') }}" method="POST">
+                        <label class="x-small fw-900 uppercase text-white-50 mb-1">Establish New League</label>
+                        <div class="input-group">
+                            <input type="text" name="league_name" class="form-control bg-black border-secondary text-white" placeholder="League Name" required>
+                            <button class="btn btn-outline-light fw-900" type="submit">CREATE</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root { --ocean: #0ea5e9; }
+    .btn-ocean { background-color: var(--ocean); color: white; border: none; }
+    .btn-ocean:hover { background-color: #0284c7; color: white; }
+    .border-ocean { border-color: #1e293b !important; }
+    .hover-glow:hover { border-color: var(--accent) !important; background: #0a0a0a; }
+</style>
+
+{% endblock %}

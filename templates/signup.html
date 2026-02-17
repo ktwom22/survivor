@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-4">
+        <div class="pro-card shadow-lg">
+            <h3 class="fw-900 mb-4 text-center">CREATE <span class="text-accent">ACCOUNT</span></h3>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="small text-muted fw-bold">USERNAME</label>
+                    <input type="text" name="username" class="form-control bg-dark text-white border-secondary" required>
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted fw-bold">EMAIL</label>
+                    <input type="email" name="email" class="form-control bg-dark text-white border-secondary" required>
+                </div>
+                <div class="mb-4">
+                    <label class="small text-muted fw-bold">PASSWORD</label>
+                    <input type="password" name="password" class="form-control bg-dark text-white border-secondary" required>
+                </div>
+                <button type="submit" class="btn btn-accent w-100 fw-bold py-2">REGISTER</button>
+            </form>
+            <div class="mt-4 text-center">
+                <a href="/login" class="text-muted small text-decoration-none">Already have an account? <span class="text-accent">Login</span></a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

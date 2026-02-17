@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="pro-card border-accent mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="fw-900 m-0 text-accent text-uppercase">Admin Scoring Center</h2>
+            <span class="badge bg-dark text-muted">COMMISSIONER ACCESS</span>
+        </div>
+    </div>
+
+    <form action="{{ url_for('admin_scoring') }}" method="POST">
+        <div class="pro-card mb-4 bg-dark border-secondary">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="fw-bold text-white mb-1">Which episode are we scoring?</h5>
+                    <p class="text-muted small m-0">This will group these stats in the player's profile table.</p>
+                </div>
+                <div class="col-md-6">
+                    <select name="week_num" class="form-select form-select-lg bg-black text-accent fw-900 border-accent">
+                        {% for i in range(1, 15) %}
+                            <option value="{{ i }}">EPISODE {{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="pro-card p-0 overflow-hidden border-secondary">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover m-0 align-middle">
+                    <thead class="bg-black text-muted x-small uppercase">
+                        <tr>
+                            <th class="ps-4">Survivor</th>
+                            <th>SURV (1pt)</th>
+                            <th>IMM (5pt)</th>
+                            <th>IDL (3pt)</th>
+                            <th>SOC (1pt)</th>
+                            <th class="text-danger">PNL (-5pt)</th>
+                            <th class="text-center">Voted Out?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in survivors %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ s.image_url }}" class="rounded me-2" style="width: 35px; height: 35px; object-fit: cover;">
+                                    <span class="fw-bold">{{ s.name }}</span>
+                                    {% if s.is_out %}<span class="ms-2 badge bg-danger x-small">OUT</span>{% endif %}
+                                </div>
+                            </td>
+                            <td><input type="number" step="0.5" name="surv_{{ s.id }}" class="form-control form-control-sm bg-dark text-white border-secondary" value="0"></td>
+                            <td><input type="number" step="0.5" name="imm_{{ s.id }}" class="form-control form-control-sm bg-dark text-white border-secondary" value="0"></td>
+                            <td><input type="number" step="0.5" name="idl_{{ s.id }}" class="form-control form-control-sm bg-dark text-white border-secondary" value="0"></td>
+                            <td><input type="number" step="0.5" name="soc_{{ s.id }}" class="form-control form-control-sm bg-dark text-white border-secondary" value="0"></td>
+                            <td><input type="number" step="0.5" name="pnl_{{ s.id }}" class="form-control form-control-sm bg-dark text-white border-secondary" value="0"></td>
+                            <td class="text-center">
+                                <input type="checkbox" name="voted_out_{{ s.id }}" class="form-check-input border-danger">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-4 mb-5">
+            <button type="submit" class="btn btn-accent w-100 py-3 fw-900 fs-4 shadow">PUSH LIVE POINTS TO LEAGUES 🚀</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
