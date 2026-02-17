@@ -1,0 +1,23 @@
+# Virtual Environment (Thousands of files you don't need to track)
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Databases (Crucial so you don't overwrite the Cloud DB with local test data)
+*.db
+*.sqlite3
+instance/
+
+# Environment Variables / Secrets
+.env
+.flaskenv
+
+# OS-specific files
+.DS_Store
+Thumbs.db
