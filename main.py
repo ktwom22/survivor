@@ -132,6 +132,14 @@ def home():
         leagues = League.query.filter(League.id.in_(league_ids)).all()
     return render_template('home.html', user_leagues=leagues)
 
+@app.route('/player/<int:player_id>')
+def player_profile(player_id):
+    player = db.session.get(Survivor, player_id)
+    if not player:
+        flash("Player not found.")
+        return redirect(url_for('home'))
+    return render_template('player_profile.html', player=player)
+
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
