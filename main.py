@@ -132,14 +132,15 @@ def home():
         leagues = League.query.filter(League.id.in_(league_ids)).all()
     return render_template('home.html', user_leagues=leagues)
 
+
 @app.route('/player/<int:player_id>')
 def player_profile(player_id):
-    player = db.session.get(Survivor, player_id)
-    if not player:
+    player_obj = db.session.get(Survivor, player_id)
+    if not player_obj:
         flash("Player not found.")
         return redirect(url_for('home'))
-    return render_template('player_profile.html', player=player)
-
+    # Change 'player=player_obj' to 'p=player_obj'
+    return render_template('player_profile.html', p=player_obj)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -298,6 +299,7 @@ def admin_scoring():
         db.session.commit()
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors)
+
 
 
 if __name__ == '__main__':
