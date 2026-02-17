@@ -47,7 +47,6 @@
             </div>
 
             <div class="tribe-stack">
-                {# Captains Logic #}
                 {% for cap, mult, label, color in [
                     (my_tribe.cap1, 2.0, 'Gold Captain', 'var(--accent)'),
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
@@ -73,7 +72,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# Regulars Logic #}
                 <h6 class="fw-900 uppercase ls-2 mt-4 mb-3 text-white-50">Active Members</h6>
                 <div class="row g-3">
                     {% for p in my_tribe.regs %}
@@ -96,7 +94,7 @@
             <div class="pro-card border-accent p-4 shadow-lg">
                 <div class="mb-4 text-center">
                     <h2 class="fw-900 uppercase text-accent m-0">Draft Your Tribe</h2>
-                    <p class="text-white-50 small">Face-focused drafting enabled. Hover to view bios.</p>
+                    <p class="text-white-50 small">Face-focused drafting enabled. Select exactly 3 Regulars to unlock.</p>
                 </div>
 
                 <form action="{{ url_for('draft', code=league.invite_code) }}" method="POST" id="draftForm">
@@ -127,7 +125,7 @@
                         <div class="row g-2" style="max-height: 550px; overflow-y: auto; overflow-x: hidden;">
                             {% for p in available %}
                             <div class="col-6 col-md-3">
-                                <input type="checkbox" name="regs" value="{{ p.id }}" id="p{{ p.id }}" class="btn-check" autocomplete="off">
+                                <input type="checkbox" name="regs" value="{{ p.id }}" id="p{{ p.id }}" class="btn-check reg-cb" autocomplete="off">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="p{{ p.id }}">
                                     <div class="position-relative overflow-hidden" style="background: #111;">
                                         <img src="{{ p.image_url }}" class="img-fluid w-100"
@@ -138,6 +136,7 @@
 
                                         <div class="detail-overlay p-2">
                                             <p class="x-small text-white m-0 lh-sm">{{ p.details[:100] }}...</p>
+                                            <a href="{{ url_for('player_profile', player_id=p.id) }}" target="_blank" class="btn btn-accent btn-sm py-0 px-2 mt-1 fw-900" style="font-size: 0.6rem;">BIO &rarr;</a>
                                         </div>
                                     </div>
                                     <div class="p-2 bg-black border-top border-secondary">
@@ -149,7 +148,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" id="submitBtn" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2" disabled>Lock In Tribe 🔒</button>
+                    <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 3 Regulars to Lock In 🔒</button>
                 </form>
             </div>
         {% else %}
@@ -163,11 +162,9 @@
 </div>
 
 <style>
-    /* General Styling */
     .transition { transition: all 0.2s ease; }
     .transition:hover { border-bottom-color: var(--accent) !important; padding-left: 8px !important; }
 
-    /* Visual Draft Components */
     .points-tag, .season-tag {
         position: absolute; background: rgba(0,0,0,0.85); color: white;
         font-size: 0.6rem; padding: 2px 6px; font-weight: 900; border-radius: 2px;
@@ -180,7 +177,7 @@
         position: absolute; bottom: 0; left: 0; right: 0;
         background: linear-gradient(transparent, rgba(0,0,0,0.95) 40%);
         height: 0; transition: height 0.3s ease;
-        overflow: hidden; display: flex; align-items: flex-end;
+        overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
         z-index: 3;
     }
 
@@ -191,30 +188,34 @@
         border-color: var(--accent) !important;
         box-shadow: 0 0 20px rgba(254, 215, 0, 0.3);
     }
-    .btn-check:checked + .player-card-label img {
-        filter: saturate(1.2) brightness(1.1);
-    }
+    .btn-check:checked + .player-card-label img { filter: saturate(1.2) brightness(1.1); }
 
-    /* Form Elements */
     .form-select { border-radius: 0; border-width: 2px; }
     .form-select:focus { box-shadow: none; border-color: var(--accent); }
 </style>
 
 <script>
-    const checks = document.querySelectorAll('input[name="regs"]');
+    const checks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
     const counter = document.getElementById('counter');
 
     checks.forEach(check => {
         check.addEventListener('change', () => {
-            const count = document.querySelectorAll('input[name="regs"]:checked').length;
+            const count = document.querySelectorAll('.reg-cb:checked').length;
             counter.innerText = `${count} / 3 SELECTED`;
 
             if (count === 3) {
                 btn.disabled = false;
+                btn.classList.remove('btn-secondary', 'opacity-50');
+                btn.classList.add('btn-accent');
+                btn.innerText = "LOCK IN TRIBE 🔒";
+                // Disable others
                 checks.forEach(c => { if(!c.checked) c.disabled = true; });
             } else {
                 btn.disabled = true;
+                btn.classList.add('btn-secondary', 'opacity-50');
+                btn.classList.remove('btn-accent');
+                btn.innerText = `SELECT ${3 - count} MORE REGULARS`;
                 checks.forEach(c => c.disabled = false);
             }
         });

@@ -8,7 +8,6 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
 
 # --- DATABASE CONFIG (RAILWAY FRIENDLY) ---
-# Railway uses 'postgres://', but SQLAlchemy 1.4+ requires 'postgresql://'
 db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -98,7 +97,6 @@ def sync_players():
 
 def get_roster_data(roster):
     if not roster: return None
-    # Using session.get for SQLAlchemy 2.0 compatibility
     c1 = db.session.get(Survivor, roster.cap1_id)
     c2 = db.session.get(Survivor, roster.cap2_id)
     c3 = db.session.get(Survivor, roster.cap3_id)
@@ -112,48 +110,45 @@ def get_roster_data(roster):
 
 
 # --- ROUTES ---
+
 @app.before_request
 def setup_database():
-    # This checks if we've already initialized this server instance
     if not hasattr(app, "_database_initialized"):
         with app.app_context():
-            db.create_all()  # Creates User, Survivor, League tables in Postgres
-            # Only sync if database is empty to prevent slow startups
+            db.create_all()
             if Survivor.query.count() == 0:
                 sync_players()
         app._database_initialized = True
 
+
 @app.route('/')
 def home():
-    all_cast = Survivor.query.all()  # <--- Added this line
+    all_cast = Survivor.query.all()
     leagues = []
     if 'user_id' in session:
         my_rosters = Roster.query.filter_by(user_id=session['user_id']).all()
         league_ids = [r.league_id for r in my_rosters]
         if league_ids:
             leagues = League.query.filter(League.id.in_(league_ids)).all()
-    # Added cast=all_cast here
     return render_template('home.html', user_leagues=leagues, cast=all_cast)
+
 
 @app.route('/player/<int:player_id>')
 def player_profile(player_id):
-    # Get the survivor
     p_obj = db.session.get(Survivor, player_id)
     if not p_obj:
         flash("Player not found.")
         return redirect(url_for('home'))
 
-    # Calculate the 'totals' that your HTML is looking for
     totals = {
-        'surv': sum(s.surv for s in p_obj.stats),
-        'imm': sum(s.imm for s in p_obj.stats),
-        'idl': sum(s.idl for s in p_obj.stats),
-        'soc': sum(s.soc for s in p_obj.stats),
-        'pnl': sum(s.pnl for s in p_obj.stats)
+        'surv': sum(s.surv for s in p_obj.stats) if p_obj.stats else 0.0,
+        'imm': sum(s.imm for s in p_obj.stats) if p_obj.stats else 0.0,
+        'idl': sum(s.idl for s in p_obj.stats) if p_obj.stats else 0.0,
+        'soc': sum(s.soc for s in p_obj.stats) if p_obj.stats else 0.0,
+        'pnl': sum(s.pnl for s in p_obj.stats) if p_obj.stats else 0.0
     }
-
-    # Pass BOTH 'p' and 'totals' to the template
     return render_template('player_profile.html', p=p_obj, totals=totals)
+
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -161,21 +156,15 @@ def signup():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-
         hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
         new_u = User(username=username, email=email, password=hashed_pw)
         try:
             db.session.add(new_u)
             db.session.commit()
-
-            # --- AUTO LOGIN START ---
-            session['user_id'] = new_u.id
-            session['username'] = new_u.username
-            # --- AUTO LOGIN END ---
-
+            session['user_id'], session['username'] = new_u.id, new_u.username
             flash("Account created and logged in!")
             return redirect(url_for('home'))
-        except Exception as e:
+        except Exception:
             db.session.rollback()
             flash("Username or Email already exists.")
     return render_template('signup.html')
@@ -184,19 +173,13 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # This variable now represents whatever they typed in the first box
-        login_input = request.form.get('email')  # Usually the 'name' attribute in your HTML
+        login_input = request.form.get('email')
         password = request.form.get('password')
-
-        # Check for user by email OR by username
         u = User.query.filter((User.email == login_input) | (User.username == login_input)).first()
-
         if u and check_password_hash(u.password, password):
-            session['user_id'] = u.id
-            session['username'] = u.username
+            session['user_id'], session['username'] = u.id, u.username
             return redirect(url_for('home'))
-
-        flash("Invalid username/email or password.")
+        flash("Invalid credentials.")
     return render_template('login.html')
 
 
@@ -246,9 +229,9 @@ def league_dashboard(code):
 
     leaderboard = sorted(leaderboard, key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
-    display_roster = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
+    display_roster = Roster.query.filter_by(league_id=league.id,
+                                            user_id=target_user.id).first() if target_user else None
 
-    # Draft Filtering
     taken_ids = []
     for r in all_rosters:
         taken_ids.extend([r.cap1_id, r.cap2_id, r.cap3_id])
@@ -286,38 +269,49 @@ def draft(code):
         )
         db.session.add(new_r)
         db.session.commit()
-    except:
+    except Exception:
         db.session.rollback()
     return redirect(url_for('league_dashboard', code=code))
 
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
+    # Admin Protection
+    if session.get('admin_authenticated') != True:
+        password = request.args.get('pw')
+        if password == os.getenv("ADMIN_PASSWORD", "survivor_secret_123"):
+            session['admin_authenticated'] = True
+        else:
+            flash("Unauthorized.")
+            return redirect(url_for('home'))
+
     survivors = Survivor.query.all()
     if request.method == 'POST':
-        week_num = int(request.form.get('week_num', 1))
-        for s in survivors:
-            if request.form.get(f'voted_out_{s.id}'):
-                s.is_out = True
-            stat = WeeklyStat(
-                player_id=s.id, week=week_num,
-                surv=float(request.form.get(f'surv_{s.id}', 0)),
-                imm=float(request.form.get(f'imm_{s.id}', 0)),
-                idl=float(request.form.get(f'idl_{s.id}', 0)),
-                soc=float(request.form.get(f'soc_{s.id}', 0)),
-                pnl=float(request.form.get(f'pnl_{s.id}', 0))
-            )
-            s.points += stat.week_total
-            db.session.add(stat)
-        db.session.commit()
-        return redirect(url_for('admin_scoring'))
+        if 'sync_all' in request.form:
+            sync_players()
+            flash("Players synced from Google Sheets!")
+        else:
+            week_num = int(request.form.get('week_num', 1))
+            for s in survivors:
+                if request.form.get(f'voted_out_{s.id}'):
+                    s.is_out = True
+                stat = WeeklyStat(
+                    player_id=s.id, week=week_num,
+                    surv=float(request.form.get(f'surv_{s.id}', 0)),
+                    imm=float(request.form.get(f'imm_{s.id}', 0)),
+                    idl=float(request.form.get(f'idl_{s.id}', 0)),
+                    soc=float(request.form.get(f'soc_{s.id}', 0)),
+                    pnl=float(request.form.get(f'pnl_{s.id}', 0))
+                )
+                s.points += stat.week_total
+                db.session.add(stat)
+            db.session.commit()
+            flash(f"Scores updated for Week {week_num}")
+        return redirect(url_for('admin_scoring', pw=os.getenv("ADMIN_PASSWORD")))
+
     return render_template('admin_scoring.html', survivors=survivors)
 
 
-
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        sync_players()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
