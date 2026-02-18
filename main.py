@@ -3,7 +3,7 @@ from io import StringIO
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from itsdangerous import URLSafeTimedSerializer # Needed for secure tokens
+from itsdangerous import URLSafeTimedSerializer
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
@@ -11,8 +11,6 @@ app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
 # --- AUTH & EMAIL CONFIG ---
 resend.api_key = os.getenv("RESEND_API_KEY")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
-
-# This creates the "Secure Token Generator"
 serializer = URLSafeTimedSerializer(app.secret_key)
 
 # --- DATABASE CONFIG ---
@@ -213,12 +211,12 @@ def forgot_password():
                             <h2 style="color:#FFD700;">PASSWORD RESET REQUEST</h2>
                             <p>Click the button below to secure your tribe's access:</p>
                             <a href="{reset_url}" style="background:#FFD700; color:#000; padding:12px 25px; text-decoration:none; font-weight:bold; display:inline-block; margin:20px 0;">RESET PASSWORD</a>
-                            <p style="font-size:12px; color:#aaa;">This link will expire in 1 hour. If you didn't request this, ignore it.</p>
+                            <p style="font-size:12px; color:#aaa;">This link will expire in 1 hour.</p>
                         </div>
                     """
                 })
                 flash("Reset link sent! Check your inbox.", "success")
-            except Exception as e:
+            except Exception:
                 flash("Email failed to send. Check API settings.", "danger")
         else:
             flash("If that email is registered, a link has been sent.", "info")
@@ -257,6 +255,10 @@ def finalize_league():
     db.session.add(Roster(league_id=new_l.id, user_id=session['user_id']))
     db.session.commit()
     return redirect(url_for('league_success', code=code))
+
+@app.route('/league-created/<code>')
+def league_success(code):
+    return render_template('league_success.html', league=League.query.filter_by(invite_code=code).first_or_404())
 
 @app.route('/join_league', methods=['POST'])
 def join_league():
@@ -302,7 +304,13 @@ def draft(code):
         db.session.commit(); flash("Roster saved!", "success")
     return redirect(url_for('league_dashboard', code=code))
 
-# --- GLOBAL STANDINGS ---
+# --- GLOBAL STANDINGS & DRAFT ---
+
+@app.route('/global-leaderboard')
+def global_leaderboard():
+    global_rosters = Roster.query.filter_by(is_global=True).all()
+    lb = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner], key=lambda x: x['score'], reverse=True)
+    return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb))
 
 @app.route('/global/draft')
 def global_draft_page():
@@ -328,7 +336,13 @@ def save_global_draft():
     db.session.commit(); flash("Global Tribe saved!", "success")
     return redirect(url_for('home'))
 
-# --- ADMIN ---
+# --- ADMIN & PROFILES ---
+
+@app.route('/player/<int:player_id>')
+def player_profile(player_id):
+    p = Survivor.query.get_or_404(player_id)
+    totals = {'surv': sum(1 for s in p.stats if s.survived), 'imm': sum(1 for s in p.stats if s.immunity), 'score': round(p.points, 1)}
+    return render_template('player_profile.html', p=p, totals=totals)
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
