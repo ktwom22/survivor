@@ -211,15 +211,14 @@ def forgot_password():
                             <h2 style="color:#FFD700;">PASSWORD RESET REQUEST</h2>
                             <p>Click the button below to secure your tribe's access:</p>
                             <a href="{reset_url}" style="background:#FFD700; color:#000; padding:12px 25px; text-decoration:none; font-weight:bold; display:inline-block; margin:20px 0;">RESET PASSWORD</a>
-                            <p style="font-size:12px; color:#aaa;">This link will expire in 1 hour.</p>
                         </div>
                     """
                 })
                 flash("Reset link sent! Check your inbox.", "success")
             except Exception:
-                flash("Email failed to send. Check API settings.", "danger")
+                flash("Email failed to send.", "danger")
         else:
-            flash("If that email is registered, a link has been sent.", "info")
+            flash("If registered, a link has been sent.", "info")
     return render_template('forgot_password.html')
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -227,18 +226,17 @@ def reset_with_token(token):
     try:
         email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
     except:
-        flash("The reset link is invalid or has expired.", "danger")
+        flash("Invalid or expired link.", "danger")
         return redirect(url_for('login'))
-
     if request.method == 'POST':
         user = User.query.filter_by(email=email).first_or_404()
         user.password = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         db.session.commit()
-        flash("Password updated! Log in now.", "success")
+        flash("Password updated!", "success")
         return redirect(url_for('login'))
     return render_template('reset_password.html')
 
-# --- LEAGUE & DRAFT ROUTES ---
+# --- LEAGUE ROUTES ---
 
 @app.route('/create_league', methods=['POST'])
 def create_league():
@@ -278,11 +276,7 @@ def league_dashboard(code):
     l_pts = league.get_points()
     target_username = request.args.get('view_user', session.get('username'))
     all_rosters = Roster.query.filter_by(league_id=league.id).all()
-    leaderboard = []
-    for r in all_rosters:
-        if r.owner:
-            leaderboard.append({'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)})
-    leaderboard = sorted(leaderboard, key=lambda x: x['score'], reverse=True)
+    leaderboard = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)} for r in all_rosters if r.owner], key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
     return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r), target_username=target_username, available=Survivor.query.filter_by(is_out=False).all(), league_pts=l_pts)
@@ -295,24 +289,20 @@ def draft(code):
     if r:
         c1, c2, c3 = request.form.get('cap1'), request.form.get('cap2'), request.form.get('cap3')
         regs = request.form.getlist('regs')
-        all_ids = [c1, c2, c3] + regs
-        if len(all_ids) != len(set(all_ids)):
-            flash("You cannot draft the same player twice!", "danger")
-            return redirect(url_for('league_dashboard', code=code))
         r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
         r.regular_ids = ",".join(regs)
-        db.session.commit(); flash("Roster saved!", "success")
+        db.session.commit(); flash("Draft saved!", "success")
     return redirect(url_for('league_dashboard', code=code))
 
-# --- GLOBAL STANDINGS & DRAFT ---
+# --- GLOBAL STANDINGS ---
 
-# Updated to match your template name and intended link structure
-@app.route('/global-standings')
-def global_standings():
+# RENAMED TO SATISFY YOUR home.html LINK
+@app.route('/global-leaderboard')
+def global_leaderboard():
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    # Sorts the tribe owners by their calculated score
     lb = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner], key=lambda x: x['score'], reverse=True)
     return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb))
+
 @app.route('/global/draft')
 def global_draft_page():
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -323,21 +313,14 @@ def global_draft_page():
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
     if 'user_id' not in session: return redirect(url_for('login'))
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
-    if not r:
-        r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r)
-    c1, c2, c3 = request.form.get('cap1'), request.form.get('cap2'), request.form.get('cap3')
-    regs = request.form.getlist('regs')
-    if len(regs) != 5:
-        flash("Select exactly 5 squad members.", "warning")
-        return redirect(url_for('global_draft_page'))
-    r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
-    r.regular_ids = ",".join(regs)
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'], is_global=True)
+    if not r.id: db.session.add(r)
+    r.cap1_id, r.cap2_id, r.cap3_id = int(request.form.get('cap1')), int(request.form.get('cap2')), int(request.form.get('cap3'))
+    r.regular_ids = ",".join(request.form.getlist('regs'))
     db.session.commit(); flash("Global Tribe saved!", "success")
     return redirect(url_for('home'))
 
-# --- ADMIN & PROFILES ---
+# --- PROFILES & ADMIN ---
 
 @app.route('/player/<int:player_id>')
 def player_profile(player_id):
@@ -354,7 +337,7 @@ def admin_scoring():
         return render_template('admin_login.html')
     survivors = Survivor.query.all()
     if request.method == 'POST':
-        if 'sync_all' in request.form: sync_players(); flash("Players Synced!")
+        if 'sync_all' in request.form: sync_players()
         else:
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
