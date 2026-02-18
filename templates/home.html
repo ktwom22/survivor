@@ -15,29 +15,38 @@
                         <span class="badge bg-accent text-dark fw-900 me-3 px-3">GLOBAL EVENT</span>
                         <h3 class="fw-900 uppercase m-0">World Series Leaderboard</h3>
                     </div>
-                    <p class="text-white-50 small mb-4">Anyone can enter. Unlimited entrants. See where your tribe ranks against the entire world of Survivor fans.</p>
+                    <p class="text-white-50 small mb-4">Anyone can enter. Unlimited entrants. Compete against the world with the standard scoring system.</p>
 
                     <div class="list-group list-group-flush border-top border-secondary">
-                        {% for player in global_top_5 %}
-                        <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center px-0 py-2">
-                            <span class="small fw-900">
-                                <span class="text-accent me-2">#{{ loop.index }}</span>
-                                {{ player.user|upper }}
-                                {% if player.user == session.username %}<span class="x-small text-white-50 ms-1">(YOU)</span>{% endif %}
-                            </span>
-                            <span class="fw-900 text-white">{{ player.score|round(1) }}</span>
-                        </div>
-                        {% endfor %}
+                        {% if global_top_5 %}
+                            {% for player in global_top_5 %}
+                            <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small fw-900">
+                                    <span class="text-accent me-2">#{{ loop.index }}</span>
+                                    {{ player.user|upper }}
+                                    {% if player.user == session.username %}<span class="x-small text-white-50 ms-1">(YOU)</span>{% endif %}
+                                </span>
+                                <span class="fw-900 text-white">{{ player.score|round(1) }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="py-3 text-white-50 small italic">Waiting for the first tribes to be drafted...</div>
+                        {% endif %}
                     </div>
 
                     <div class="mt-4 d-flex gap-2 flex-column flex-sm-row">
                         <a href="{{ url_for('global_leaderboard') }}" class="btn btn-outline-light fw-900 uppercase ls-1 px-4">
                             Expand Standings ({{ total_global_entrants }})
                         </a>
+
                         {% if not user_in_global %}
-                        <form action="{{ url_for('join_global') }}" method="POST" class="m-0">
-                            <button type="submit" class="btn btn-accent fw-900 uppercase ls-1 px-4 text-dark w-100">Enter Tournament</button>
-                        </form>
+                            <form action="{{ url_for('join_global') }}" method="POST" class="m-0">
+                                <button type="submit" class="btn btn-accent fw-900 uppercase ls-1 px-4 text-dark w-100">Enter Tournament</button>
+                            </form>
+                        {% else %}
+                            <a href="{{ url_for('global_draft_page') }}" class="btn btn-success fw-900 uppercase ls-1 px-4 shadow-glow">
+                                <i class="bi bi-person-plus-fill me-2"></i>Draft Global Tribe
+                            </a>
                         {% endif %}
                     </div>
                 </div>
@@ -45,7 +54,7 @@
                     <div class="p-4 rounded border border-secondary bg-darker">
                         <div class="display-1 fw-900 text-accent mb-0">S50</div>
                         <div class="fw-900 uppercase ls-2 text-white-50">Global Champion</div>
-                        <div class="mt-3 x-small text-white-50 italic">Currently competing for the 2026 Title</div>
+                        <div class="mt-3 x-small text-white-50 italic">The ultimate Survivor bragging rights</div>
                     </div>
                 </div>
             </div>
@@ -128,6 +137,11 @@
     .btn-ocean { background-color: var(--ocean); color: white; border: none; }
     .btn-ocean:hover { background-color: #0284c7; color: white; }
     .hover-glow:hover { border-color: var(--accent) !important; background: #0a0a0a; }
+
+    .shadow-glow {
+        box-shadow: 0 0 15px rgba(25, 135, 84, 0.4);
+        border: none;
+    }
 
     /* Cast Card Styles */
     .cast-card { transition: transform 0.3s ease, border-color 0.3s ease; }

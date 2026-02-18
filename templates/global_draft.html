@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="pro-card border-accent p-4 shadow-lg">
+    <div class="mb-4 text-center">
+        <h2 class="fw-900 uppercase text-accent m-0 ls-1">Global Contest: Select Your Tribe</h2>
+        <p class="text-white-50 small">This tribe competes against everyone in the world.</p>
+    </div>
+
+    <form action="{{ url_for('save_global_draft') }}" method="POST" id="draftForm">
+        <div class="row g-2 mb-4">
+            </div>
+        
+        <div class="row g-2 mb-4" id="playerGallery">
+            </div>
+
+        <button type="submit" id="submitBtn" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2">
+            LOCK IN GLOBAL TRIBE 🔒
+        </button>
+    </form>
+</div>
+{% endblock %}

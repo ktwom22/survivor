@@ -318,6 +318,36 @@ def join_global():
     return redirect(url_for('home'))
 
 
+@app.route('/global/draft')
+def global_draft_page():
+    if 'user_id' not in session: return redirect(url_for('login'))
+
+    # Find the global roster for this user
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+    if not r:
+        flash("Join the Global Tournament first!")
+        return redirect(url_for('home'))
+
+    available = Survivor.query.filter_by(is_out=False).all()
+    # We use a specific 'global_draft' template or reuse the dashboard draft UI
+    return render_template('global_draft.html', available=available, roster=r)
+
+
+@app.route('/global/save_draft', methods=['POST'])
+def save_global_draft():
+    if 'user_id' not in session: return redirect(url_for('login'))
+
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+    if r:
+        r.cap1_id = int(request.form.get('cap1'))
+        r.cap2_id = int(request.form.get('cap2'))
+        r.cap3_id = int(request.form.get('cap3'))
+        r.regular_ids = ",".join(request.form.getlist('regs'))
+        db.session.commit()
+        flash("Global Tribe Locked In! 🔒")
+
+    return redirect(url_for('global_leaderboard'))
+
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
     if not session.get('admin_authenticated'):
