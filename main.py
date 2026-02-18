@@ -3,17 +3,17 @@ from io import StringIO
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer # Needed for secure tokens
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
 
 # --- AUTH & EMAIL CONFIG ---
-# This line "reads" the key from the dashboard settings above
 resend.api_key = os.getenv("RESEND_API_KEY")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
 
-# IMPORTANT: If you haven't verified a domain on Resend,
-# you MUST use this specific email address as the sender:
-SENDER_EMAIL = "onboarding@resend.dev"
+# This creates the "Secure Token Generator"
+serializer = URLSafeTimedSerializer(app.secret_key)
 
 # --- DATABASE CONFIG ---
 db_url = os.getenv("DATABASE_URL")
@@ -23,11 +23,6 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v7.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
-# --- RESEND CONFIG ---
-resend.api_key = os.getenv("RESEND_API_KEY")
-# Use 'onboarding@resend.dev' for testing with your own email until your domain is verified
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
 
 # --- GLOBAL DEFAULTS ---
 POINTS_CONFIG = {
@@ -150,6 +145,7 @@ def calculate_roster_score(roster, pts_config):
     return round(score, 1)
 
 # --- ROUTES ---
+
 @app.route('/')
 def home():
     all_cast = Survivor.query.all()
@@ -190,43 +186,61 @@ def login():
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
             return redirect(url_for('home'))
-        flash("Invalid credentials.")
+        flash("Invalid credentials.", "danger")
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     session.clear(); return redirect(url_for('home'))
 
-# --- NEW: PASSWORD RECOVERY (RESEND) ---
+# --- PASSWORD RECOVERY ---
+
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
         if user:
+            token = serializer.dumps(user.email, salt='password-reset-salt')
+            reset_url = url_for('reset_with_token', token=token, _external=True)
             try:
-                # In a real app, generate a specific token for resetting.
-                # This logic currently sends a confirmation with their username.
-                params = {
+                resend.Emails.send({
                     "from": f"Survivor Pool <{SENDER_EMAIL}>",
                     "to": [user.email],
-                    "subject": "Survivor Pool - Reset Your Password",
+                    "subject": "Reset Your Password",
                     "html": f"""
-                    <h2>Hi {user.username}!</h2>
-                    <p>We received a request to reset your password.</p>
-                    <p>Click the link below to go to the login page and try your login again, 
-                    or contact an admin to manually reset your hashed record.</p>
-                    <a href='{url_for('login', _external=True)}'>Go to Login</a>
+                        <div style="background:#000; color:#fff; padding:20px; border:4px solid #FFD700; font-family:sans-serif;">
+                            <h2 style="color:#FFD700;">PASSWORD RESET REQUEST</h2>
+                            <p>Click the button below to secure your tribe's access:</p>
+                            <a href="{reset_url}" style="background:#FFD700; color:#000; padding:12px 25px; text-decoration:none; font-weight:bold; display:inline-block; margin:20px 0;">RESET PASSWORD</a>
+                            <p style="font-size:12px; color:#aaa;">This link will expire in 1 hour. If you didn't request this, ignore it.</p>
+                        </div>
                     """
-                }
-                resend.Emails.send(params)
-                flash("Recovery email sent! Check your inbox.", "success")
+                })
+                flash("Reset link sent! Check your inbox.", "success")
             except Exception as e:
-                flash(f"Email service error: {str(e)}", "danger")
+                flash("Email failed to send. Check API settings.", "danger")
         else:
-            flash("If an account exists for that email, an update has been sent.", "info")
-        return redirect(url_for('login'))
+            flash("If that email is registered, a link has been sent.", "info")
     return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_with_token(token):
+    try:
+        email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
+    except:
+        flash("The reset link is invalid or has expired.", "danger")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        user = User.query.filter_by(email=email).first_or_404()
+        user.password = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        db.session.commit()
+        flash("Password updated! Log in now.", "success")
+        return redirect(url_for('login'))
+    return render_template('reset_password.html')
+
+# --- LEAGUE & DRAFT ROUTES ---
 
 @app.route('/create_league', methods=['POST'])
 def create_league():
@@ -244,10 +258,6 @@ def finalize_league():
     db.session.commit()
     return redirect(url_for('league_success', code=code))
 
-@app.route('/league-created/<code>')
-def league_success(code):
-    return render_template('league_success.html', league=League.query.filter_by(invite_code=code).first_or_404())
-
 @app.route('/join_league', methods=['POST'])
 def join_league():
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -257,7 +267,7 @@ def join_league():
             db.session.add(Roster(league_id=l.id, user_id=session['user_id']))
             db.session.commit()
         return redirect(url_for('league_dashboard', code=l.invite_code))
-    flash("League not found."); return redirect(url_for('home'))
+    flash("League not found.", "danger"); return redirect(url_for('home'))
 
 @app.route('/league/<code>')
 def league_dashboard(code):
@@ -268,8 +278,8 @@ def league_dashboard(code):
     all_rosters = Roster.query.filter_by(league_id=league.id).all()
     leaderboard = []
     for r in all_rosters:
-        if not r.owner: continue
-        leaderboard.append({'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)})
+        if r.owner:
+            leaderboard.append({'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)})
     leaderboard = sorted(leaderboard, key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
@@ -285,27 +295,14 @@ def draft(code):
         regs = request.form.getlist('regs')
         all_ids = [c1, c2, c3] + regs
         if len(all_ids) != len(set(all_ids)):
-            flash("You cannot draft the same player twice!"); return redirect(url_for('league_dashboard', code=code))
+            flash("You cannot draft the same player twice!", "danger")
+            return redirect(url_for('league_dashboard', code=code))
         r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
         r.regular_ids = ",".join(regs)
-        db.session.commit()
+        db.session.commit(); flash("Roster saved!", "success")
     return redirect(url_for('league_dashboard', code=code))
 
-# --- GLOBAL DRAFT & STANDINGS ---
-
-@app.route('/global-leaderboard')
-def global_leaderboard():
-    global_rosters = Roster.query.filter_by(is_global=True).all()
-    lb = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner], key=lambda x: x['score'], reverse=True)
-    return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb))
-
-@app.route('/join-global', methods=['POST'])
-def join_global():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    if not Roster.query.filter_by(user_id=session['user_id'], is_global=True).first():
-        db.session.add(Roster(user_id=session['user_id'], is_global=True))
-        db.session.commit()
-    return redirect(url_for('global_draft_page'))
+# --- GLOBAL STANDINGS ---
 
 @app.route('/global/draft')
 def global_draft_page():
@@ -323,19 +320,12 @@ def save_global_draft():
         db.session.add(r)
     c1, c2, c3 = request.form.get('cap1'), request.form.get('cap2'), request.form.get('cap3')
     regs = request.form.getlist('regs')
-    all_picks = [p for p in ([c1, c2, c3] + regs) if p]
-    if len(all_picks) != len(set(all_picks)):
-        flash("Error: Duplicate players detected.", "danger")
-        return redirect(url_for('global_draft_page'))
     if len(regs) != 5:
         flash("Select exactly 5 squad members.", "warning")
         return redirect(url_for('global_draft_page'))
     r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
     r.regular_ids = ",".join(regs)
-    try:
-        db.session.commit(); flash("Global Tribe saved!", "success")
-    except:
-        db.session.rollback(); flash("Database error.")
+    db.session.commit(); flash("Global Tribe saved!", "success")
     return redirect(url_for('home'))
 
 # --- ADMIN ---
@@ -360,12 +350,6 @@ def admin_scoring():
             db.session.commit(); flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
-
-@app.route('/player/<int:player_id>')
-def player_profile(player_id):
-    p = Survivor.query.get_or_404(player_id)
-    totals = {'surv': sum(1 for s in p.stats if s.survived), 'imm': sum(1 for s in p.stats if s.immunity), 'score': round(p.points, 1)}
-    return render_template('player_profile.html', p=p, totals=totals)
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
