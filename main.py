@@ -327,17 +327,20 @@ def nuke_and_pave():
     return "Database reset and Players Re-Synced! <a href='/'>Go Home</a>"
 
 
-@app.route('/join_global', methods=['POST'])
+@app.route('/global-leaderboard')
+def global_leaderboard():
+    # 1. Fetch your global data here
+    # 2. total_entrants = count of users in your global table
+    # 3. full_list = all users sorted by score
+    return render_template('global_standings.html',
+                           full_global_leaderboard=full_list,
+                           total_global_entrants=total_entrants)
+
+@app.route('/join-global', methods=['POST'])
 def join_global():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    # Logic to add user to the 'Global' league in your DB/Sheet
-    # For example: add_user_to_league(session['username'], 'GLOBAL_2026')
-
-    flash("YOU HAVE ENTERED THE GLOBAL TOURNAMENT!")
+    # Logic to add user to the global tournament
+    flash("Successfully joined the Global Tournament!")
     return redirect(url_for('home'))
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
