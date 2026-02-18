@@ -96,7 +96,7 @@
             <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
                     <h2 class="fw-900 uppercase text-accent m-0 ls-1">Assembling Your Tribe</h2>
-                    <p class="text-white-50 x-small">Choose 3 Captains and 3 Regulars. Click <span class="text-info">ⓘ</span> for bio.</p>
+                    <p class="text-white-50 x-small">Choose 3 Captains and 3 Regulars. Each player can only be used once.</p>
                 </div>
 
                 <div class="mb-4">
@@ -108,7 +108,7 @@
                         {% for cap_key, label, color in [('cap1', 'Gold (2x)', 'var(--accent)'), ('cap2', 'Silver (1.5x)', '#fff'), ('cap3', 'Bronze (1.25x)', '#64748b')] %}
                         <div class="col-12 col-md-4">
                             <label class="x-small fw-900 uppercase mb-1" style="color: {{ color }}">{{ label }} Captain</label>
-                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small" required>
+                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small cap-select" required>
                                 <option value="">Select...</option>
                                 {% for p in available|sort(attribute='name') %}
                                 <option value="{{ p.id }}">{{ p.name }} (S{{ p.season }})</option>
@@ -125,7 +125,7 @@
 
                     <div class="row g-2 mb-4 overflow-auto" style="max-height: 450px; scrollbar-width: thin;" id="playerGallery">
                         {% for p in available|sort(attribute='name') %}
-                        <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}">
+                        <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
                                         onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
@@ -174,16 +174,12 @@
     .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
 
     .player-card-label { border-radius: 6px; overflow: hidden; transition: 0.2s; border-color: rgba(255,255,255,0.1) !important; cursor: pointer; }
-    .btn-check:checked + .player-card-label {
-        border-color: var(--accent) !important;
-        box-shadow: 0 0 15px rgba(255, 193, 7, 0.4);
-        transform: scale(0.96);
-    }
+    .btn-check:checked + .player-card-label { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); transform: scale(0.96); }
 
-    .name-overlay {
-        position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8);
-        color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center;
-    }
+    /* Visual feedback for disabled/already-picked players */
+    .btn-check:disabled + .player-card-label { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
+
+    .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
     .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
 
     .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
@@ -193,24 +189,17 @@
 </style>
 
 <script>
-    // Robust Modal Logic
     function showQuickLook(event, name, img, season, details) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-
+        if (event) { event.preventDefault(); event.stopPropagation(); }
         const modalEl = document.getElementById('quickLookModal');
         document.getElementById('modalName').innerText = name;
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
-
-        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        bsModal.show();
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
-    // Search Filter
+    // SEARCH FILTER
     document.getElementById('playerSearch')?.addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
         document.querySelectorAll('.player-item').forEach(item => {
@@ -218,31 +207,59 @@
         });
     });
 
-    // Selection Logic
-    const checks = document.querySelectorAll('.reg-cb');
+    // SELECTION & DUPLICATE PROTECTION LOGIC
+    const capSelects = document.querySelectorAll('.cap-select');
+    const regChecks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
     const counter = document.getElementById('counter');
 
-    checks.forEach(check => {
-        check.addEventListener('change', () => {
-            const count = document.querySelectorAll('.reg-cb:checked').length;
-            if(counter) counter.innerText = `${count} / 3`;
+    function syncDraftPicks() {
+        const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
+        const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
 
-            if (count === 3) {
-                btn.disabled = false;
-                btn.classList.replace('btn-secondary', 'btn-accent');
-                btn.classList.remove('opacity-50');
-                btn.innerText = "LOCK IN TRIBE 🔒";
-                checks.forEach(c => { if(!c.checked) c.disabled = true; });
+        // 1. Update Dropdowns (Prevent picking same person across Captain slots)
+        capSelects.forEach(s => {
+            Array.from(s.options).forEach(opt => {
+                if (opt.value === "") return;
+                const pickedElsewhere = Array.from(capSelects).some(other => other !== s && other.value === opt.value);
+                opt.disabled = pickedElsewhere;
+            });
+        });
+
+        // 2. Update Gallery (Prevent picking Captains as Regulars)
+        regChecks.forEach(cb => {
+            if (selectedCapIds.includes(cb.value)) {
+                cb.checked = false; // Uncheck if they just picked them as a captain
+                cb.disabled = true;
             } else {
-                btn.disabled = true;
-                btn.classList.replace('btn-accent', 'btn-secondary');
-                btn.classList.add('opacity-50');
-                btn.innerText = count < 3 ? `SELECT ${3 - count} MORE` : "REDUCE SELECTION";
-                checks.forEach(c => c.disabled = false);
+                // Also respect the "Max 3" rule
+                if (currentRegCount >= 3 && !cb.checked) {
+                    cb.disabled = true;
+                } else {
+                    cb.disabled = false;
+                }
             }
         });
-    });
+
+        // 3. Update Submit Button
+        if (counter) counter.innerText = `${currentRegCount} / 3`;
+
+        if (currentRegCount === 3 && selectedCapIds.length === 3) {
+            btn.disabled = false;
+            btn.classList.replace('btn-secondary', 'btn-accent');
+            btn.classList.remove('opacity-50');
+            btn.innerText = "LOCK IN TRIBE 🔒";
+        } else {
+            btn.disabled = true;
+            btn.classList.replace('btn-accent', 'btn-secondary');
+            btn.classList.add('opacity-50');
+            btn.innerText = currentRegCount < 3 ? `SELECT ${3 - currentRegCount} MORE REGULARS` : "COMPLETE CAPTAIN PICKS";
+        }
+    }
+
+    // Attach Event Listeners
+    capSelects.forEach(s => s.addEventListener('change', syncDraftPicks));
+    regChecks.forEach(c => c.addEventListener('change', syncDraftPicks));
 </script>
 
 {% endblock %}

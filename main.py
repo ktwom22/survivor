@@ -255,24 +255,27 @@ def join_global():
     return redirect(url_for('global_draft_page'))
 
 
-@app.route('/global/draft')
-def global_draft_page():
-    if 'user_id' not in session: return redirect(url_for('login'))
+@app.route('/save_global_draft', methods=['POST'])
+def save_global_draft():
+    # ... (existing session/user checks) ...
 
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
-    if not r:
-        r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r)
-        db.session.commit()
+    cap1 = request.form.get('cap1')
+    cap2 = request.form.get('cap2')
+    cap3 = request.form.get('cap3')
+    regs = request.form.getlist('regs')  # Returns list of IDs
 
-    available = Survivor.query.filter_by(is_out=False).all()
+    # Create a list of all selected IDs
+    all_picks = [cap1, cap2, cap3] + regs
 
-    # We MUST pass config and get_roster_data for the template to work
-    return render_template('global_draft.html',
-                           available=available,
-                           roster=r,
-                           config=POINTS_CONFIG,
-                           get_roster_data=get_roster_data)
+    # Filter out any None/Empty values just in case
+    all_picks = [p for p in all_picks if p]
+
+    # CHECK FOR DUPLICATES
+    if len(all_picks) != len(set(all_picks)):
+        flash("Validation Error: You cannot draft the same player for multiple slots!", "danger")
+        return redirect(url_for('global_draft_page'))
+
+    # ... (rest of your saving logic) ...
 
 
 @app.route('/global/save_draft', methods=['POST'])

@@ -47,7 +47,7 @@
                     <div class="small fw-900 uppercase ls-2 text-success">Active Roster 🔒</div>
                 </div>
                 <div class="text-md-end">
-                    <a href="{{ url_for('global_draft_page') }}" class="btn btn-outline-warning btn-sm fw-900 x-small mb-2" onclick="return confirm('Note: Once the premiere starts, changes will be locked. Edit picks now?')">EDIT SQUAD</a>
+                    <a href="{{ url_for('global_draft_page') }}" class="btn btn-outline-warning btn-sm fw-900 x-small mb-2" onclick="return confirm('Note: Changes lock once the premiere starts. Edit now?')">EDIT SQUAD</a>
                 </div>
             </div>
 
@@ -96,7 +96,7 @@
             <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
                     <h2 class="fw-900 uppercase text-accent m-0 ls-1">Global Draft</h2>
-                    <p class="text-white-50 x-small">Select 3 Captains and exactly 5 Squad Members.</p>
+                    <p class="text-white-50 x-small">Each player can only be used once in your tribe.</p>
                 </div>
 
                 <div class="mb-4">
@@ -108,7 +108,7 @@
                         {% for cap_key, label, color in [('cap1', 'Gold (2x)', 'var(--accent)'), ('cap2', 'Silver (1.5x)', '#fff'), ('cap3', 'Bronze (1.25x)', '#64748b')] %}
                         <div class="col-12 col-md-4">
                             <label class="x-small fw-900 uppercase mb-1" style="color: {{ color }}">{{ label }} Captain</label>
-                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small" required>
+                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small cap-select" required>
                                 <option value="">Select...</option>
                                 {% for p in available|sort(attribute='name') %}
                                 <option value="{{ p.id }}">{{ p.name }} (S{{ p.season }})</option>
@@ -125,7 +125,7 @@
 
                     <div class="row g-2 mb-4 overflow-auto" style="max-height: 450px; scrollbar-width: thin;" id="playerGallery">
                         {% for p in available|sort(attribute='name') %}
-                        <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}">
+                        <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
                                         onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
@@ -174,6 +174,7 @@
     .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
     .player-card-label { border-radius: 6px; overflow: hidden; transition: 0.2s; border-color: rgba(255,255,255,0.1) !important; cursor: pointer; }
     .btn-check:checked + .player-card-label { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); transform: scale(0.96); }
+    .btn-check:disabled + .player-card-label { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
     .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
     .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
     .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
@@ -190,35 +191,71 @@
         new bootstrap.Modal(document.getElementById('quickLookModal')).show();
     }
 
+    // UNIQUE SELECTION LOGIC
+    const capSelects = document.querySelectorAll('.cap-select');
+    const regChecks = document.querySelectorAll('.reg-cb');
+    const btn = document.getElementById('submitBtn');
+    const counter = document.getElementById('counter');
+
+    function updateSelectionState() {
+        const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
+        const selectedRegIds = Array.from(regChecks).filter(c => c.checked).map(c => c.value);
+        const allSelectedIds = [...selectedCapIds, ...selectedRegIds];
+
+        // 1. Handle Captain Dropdowns (Prevent picking same person in multiple slots)
+        capSelects.forEach(s => {
+            const currentVal = s.value;
+            Array.from(s.options).forEach(opt => {
+                if (opt.value === "") return;
+                // Disable option if it's selected in ANOTHER dropdown
+                const isSelectedElsewhere = Array.from(capSelects).some(other => other !== s && other.value === opt.value);
+                opt.disabled = isSelectedElsewhere;
+            });
+        });
+
+        // 2. Handle Regular Checkboxes
+        let checkedCount = 0;
+        regChecks.forEach(cb => {
+            // Disable if player is picked as a Captain
+            if (selectedCapIds.includes(cb.value)) {
+                cb.checked = false;
+                cb.disabled = true;
+            } else {
+                // Limit to 5 regulars
+                const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
+                if (currentRegCount >= 5 && !cb.checked) {
+                    cb.disabled = true;
+                } else {
+                    cb.disabled = false;
+                }
+            }
+            if (cb.checked) checkedCount++;
+        });
+
+        // 3. Update UI
+        if (counter) counter.innerText = `${checkedCount} / 5`;
+        if (checkedCount === 5 && selectedCapIds.length === 3) {
+            btn.disabled = false;
+            btn.classList.replace('btn-secondary', 'btn-accent');
+            btn.classList.remove('opacity-50');
+            btn.innerText = "CONFIRM GLOBAL TRIBE 🔒";
+        } else {
+            btn.disabled = true;
+            btn.classList.replace('btn-accent', 'btn-secondary');
+            btn.classList.add('opacity-50');
+            btn.innerText = checkedCount < 5 ? `SELECT ${5 - checkedCount} MORE SQUAD` : "CHECK CAPTAINS";
+        }
+    }
+
+    // Listeners
+    capSelects.forEach(s => s.addEventListener('change', updateSelectionState));
+    regChecks.forEach(c => c.addEventListener('change', updateSelectionState));
+
+    // Search Filter
     document.getElementById('playerSearch')?.addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
         document.querySelectorAll('.player-item').forEach(item => {
             item.classList.toggle('hidden', !item.getAttribute('data-name').includes(term));
-        });
-    });
-
-    const checks = document.querySelectorAll('.reg-cb');
-    const btn = document.getElementById('submitBtn');
-    const counter = document.getElementById('counter');
-
-    checks.forEach(check => {
-        check.addEventListener('change', () => {
-            const count = document.querySelectorAll('.reg-cb:checked').length;
-            if(counter) counter.innerText = `${count} / 5`;
-
-            if (count === 5) {
-                btn.disabled = false;
-                btn.classList.replace('btn-secondary', 'btn-accent');
-                btn.classList.remove('opacity-50');
-                btn.innerText = "CONFIRM GLOBAL TRIBE 🔒";
-                checks.forEach(c => { if(!c.checked) c.disabled = true; });
-            } else {
-                btn.disabled = true;
-                btn.classList.replace('btn-accent', 'btn-secondary');
-                btn.classList.add('opacity-50');
-                btn.innerText = count < 5 ? `SELECT ${5 - count} MORE` : "REDUCE SELECTION";
-                checks.forEach(c => c.disabled = false);
-            }
         });
     });
 </script>
