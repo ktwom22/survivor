@@ -315,9 +315,26 @@ def join_global():
 # RENAMED TO SATISFY YOUR home.html LINK
 @app.route('/global-leaderboard')
 def global_leaderboard():
+    # 1. Get all global rosters for the standings
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    lb = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner], key=lambda x: x['score'], reverse=True)
-    return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb))
+    lb = sorted(
+        [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
+         r.owner], key=lambda x: x['score'], reverse=True)
+
+    # 2. Specifically find the logged-in user's roster to display at the top
+    my_global_roster = None
+    my_tribe_data = None
+    if 'user_id' in session:
+        my_global_roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+        if my_global_roster:
+            # This uses your helper to get the actual Survivor objects (names, images)
+            my_tribe_data = get_roster_data(my_global_roster)
+
+    return render_template('global_standings.html',
+                           full_global_leaderboard=lb,
+                           total_global_entrants=len(lb),
+                           my_tribe=my_tribe_data)  # This sends your players to the HTML
+
 
 @app.route('/global/draft')
 def global_draft_page():
