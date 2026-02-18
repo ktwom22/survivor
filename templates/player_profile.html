@@ -11,8 +11,8 @@
                          style="object-fit: cover; min-height: 450px; filter: contrast(1.1) brightness(0.9);">
                     {% if p.is_out %}
                     <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-                         style="background: rgba(0,0,0,0.4); backdrop-filter: grayscale(1);">
-                        <h1 class="fw-900 text-danger border border-danger p-3 rotate-n15" style="letter-spacing: 10px; border-width: 5px !important;">THE TRIBE HAS SPOKEN</h1>
+                         style="background: rgba(0,0,0,0.6); backdrop-filter: grayscale(1);">
+                        <h1 class="fw-900 text-danger border border-danger p-3 rotate-n15" style="letter-spacing: 10px; border-width: 5px !important; text-shadow: 2px 2px 10px black;">THE TRIBE HAS SPOKEN</h1>
                     </div>
                     {% endif %}
                 </div>
@@ -23,11 +23,11 @@
                             <div>
                                 <h6 class="text-accent fw-900 uppercase ls-2 mb-1">Survivor Legend</h6>
                                 <h1 class="display-3 fw-900 uppercase mb-0 lh-1">{{ p.name }}</h1>
-                                <p class="lead text-white-50 fw-bold uppercase ls-1 mt-2">Season(s): {{ p.season }}</p>
+                                <p class="lead text-white-50 fw-bold uppercase ls-1 mt-2">Season: {{ p.season }}</p>
                             </div>
                             <div class="text-end">
-                                <div class="x-small fw-900 text-white-50 uppercase">Career Score</div>
-                                <div class="display-4 fw-900 text-accent">{{ p.points|round(1) }}</div>
+                                <div class="x-small fw-900 text-white-50 uppercase">Current Points</div>
+                                <div class="display-4 fw-900 text-accent">{{ totals.score|round(1) }}</div>
                             </div>
                         </div>
 
@@ -40,11 +40,11 @@
                     </div>
 
                     <div class="row g-2 mt-4">
-                        {% for label, val, key in [('Survival', totals.surv, 'surv'), ('Immunity', totals.imm, 'imm'), ('Strategy', totals.idl, 'idl'), ('Social', totals.soc, 'soc'), ('Penalties', totals.pnl, 'pnl')] %}
+                        {% for label, val in [('Survived', totals.surv), ('Immunity', totals.imm), ('Advantages', totals.adv), ('Cries', totals.cry)] %}
                         <div class="col">
                             <div class="border border-secondary p-2 text-center rounded bg-dark-hover transition">
                                 <div class="x-small fw-900 text-white-50 uppercase" style="font-size: 0.55rem;">{{ label }}</div>
-                                <div class="fw-900 {{ 'text-danger' if key == 'pnl' else 'text-white' }}">{{ val|round(1) }}</div>
+                                <div class="fw-900 text-white">{{ val }}</div>
                             </div>
                         </div>
                         {% endfor %}
@@ -56,31 +56,37 @@
         <div class="pro-card p-0 border-secondary overflow-hidden">
             <div class="p-3 bg-dark d-flex justify-content-between align-items-center">
                 <h6 class="fw-900 m-0 text-uppercase ls-2">Weekly Performance Log</h6>
-                <span class="badge bg-black border border-secondary text-white-50">S50 TRACKER</span>
+                <span class="badge bg-black border border-secondary text-white-50 uppercase small">Checklist Tracker</span>
             </div>
             <div class="table-responsive">
                 <table class="table table-dark table-hover m-0 align-middle text-center border-top border-secondary">
                     <thead class="bg-black text-muted x-small uppercase">
                         <tr>
                             <th class="text-start ps-4 py-3">Week</th>
-                            <th>Survival</th>
+                            <th>Survive</th>
                             <th>Immunity</th>
-                            <th>Idols/Adv</th>
-                            <th>Social</th>
-                            <th class="text-danger">Penalty</th>
-                            <th class="bg-dark text-white fw-900">Total</th>
+                            <th>Advantage</th>
+                            <th>😭 Cry</th>
+                            <th>Endgame</th>
+                            <th class="bg-dark text-white fw-900">Points</th>
                         </tr>
                     </thead>
                     <tbody class="small">
-                        {% for s in p.stats %}
+                        {% for s in p.stats|sort(attribute='week') %}
                         <tr>
                             <td class="text-start ps-4 fw-900 uppercase">Week {{ s.week }}</td>
-                            <td>{{ s.surv }}</td>
-                            <td>{{ s.imm }}</td>
-                            <td>{{ s.idl }}</td>
-                            <td>{{ s.soc }}</td>
-                            <td class="text-danger">{{ s.pnl }}</td>
-                            <td class="bg-dark text-accent fw-900">{{ (s.surv + s.imm + s.idl + s.soc + s.pnl)|round(1) }}</td>
+                            <td>{{ "✅" if s.survived else "—" }}</td>
+                            <td>{{ "✅" if s.immunity else "—" }}</td>
+                            <td>{{ "✅" if s.advantage else "—" }}</td>
+                            <td>{{ "✅" if s.crying else "—" }}</td>
+                            <td>
+                                {% if s.winner %}<span class="badge bg-success">WINNER</span>
+                                {% elif s.f3 %}<span class="badge bg-info text-dark">FINAL 3</span>
+                                {% elif s.f5 %}<span class="badge bg-warning text-dark">FINAL 5</span>
+                                {% elif s.merge %}<span class="badge bg-secondary">MERGE</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="bg-dark text-accent fw-900">+{{ s.week_total|round(1) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

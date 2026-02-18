@@ -1,52 +1,124 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+
+    <title>Survivor 50 | Fantasy League</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;900&display=swap" rel="stylesheet">
+
     <style>
         :root {
             --bg: #000000;
-            --accent: #ffcc00; /* Survivor 50 Yellow */
+            --accent: #ffcc00;
             --border: #1e293b;
+            --card-bg: #0a0a0a;
+        }
+
+        /* Prevent horizontal scroll issues on mobile */
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
         }
 
         body {
             background: var(--bg);
             color: #ffffff;
             font-family: 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         .nav-custom {
             background: #000000;
             border-bottom: 2px solid var(--accent);
-            padding: 15px 0;
+            padding: 12px 0;
+            /* Keeps nav at top on mobile */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
 
-        /* Standardized Card for Equal Stacking */
         .pro-card {
-            background: #000000;
+            background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 15px 20px;
-            margin-bottom: 10px;
+            border-radius: 8px; /* Slightly rounder for modern mobile feel */
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: transform 0.2s ease;
         }
 
+        /* Utility Classes */
         .fw-900 { font-weight: 900; }
         .uppercase { text-transform: uppercase; }
+        .ls-1 { letter-spacing: 1px; }
         .ls-2 { letter-spacing: 2px; }
+        .text-accent { color: var(--accent); }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 576px) {
+            .container {
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+            .display-4 { font-size: 2.5rem; } /* Shrink big titles on mobile */
+
+            /* Make buttons easier to tap with thumbs */
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+                width: 100%; /* Stack buttons on small screens */
+                margin-bottom: 8px;
+            }
+
+            .navbar-brand { font-size: 1.25rem !important; }
+        }
+
+        /* Custom Scrollbar for a premium look */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark nav-custom mb-4">
-        <div class="container">
-            <a class="navbar-brand fw-900 fs-4" href="/">SURVIVOR<span style="color:var(--accent)">50</span></a>
-            {% if session.user_id %}
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-900 uppercase ls-2" style="font-size: 0.7rem;">Logout</a>
-            {% endif %}
+
+    <nav class="navbar navbar-dark nav-custom mb-3 mb-md-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a class="navbar-brand fw-900 fs-4 m-0" href="/">
+                SURVIVOR<span class="text-accent">50</span>
+            </a>
+
+            <div class="d-flex gap-2">
+                {% if session.user_id %}
+                    <a href="/" class="btn btn-dark btn-sm fw-900 uppercase ls-1 border-secondary" style="font-size: 0.7rem;">Home</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-900 uppercase ls-1" style="font-size: 0.7rem;">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-accent btn-sm fw-900 uppercase ls-1 text-dark" style="font-size: 0.7rem;">Login</a>
+                {% endif %}
+            </div>
         </div>
     </nav>
-    <div class="container pb-5">
+
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-accent bg-black border-accent text-white small fw-bold uppercase ls-1 mb-3 py-2 text-center" role="alert">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
+
+    <div class="py-4"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

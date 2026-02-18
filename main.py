@@ -1,4 +1,4 @@
-import os, uuid, requests, csv
+import os, uuid, requests, csv, json
 from io import StringIO
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
@@ -12,24 +12,16 @@ db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-# Incremented to v6 to handle the new Boolean scoring columns
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v6.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v7.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# --- RECALIBRATED SCORING CONFIG ---
+# --- GLOBAL DEFAULTS ---
 POINTS_CONFIG = {
-    "survive_episode": 2.0,
-    "win_immunity": 5.0,
-    "win_reward": 2.0,
-    "found_advantage": 4.0,
-    "made_merge": 5.0,
-    "final_five": 8.0,
-    "final_three": 12.0,
-    "winner": 20.0,
-    "confessional_cry": 2.0,
-    "penalty": -2.0,
-    "quit_game": -25.0
+    "survive_episode": 2.0, "win_immunity": 5.0, "win_reward": 2.0,
+    "found_advantage": 4.0, "made_merge": 5.0, "final_five": 8.0,
+    "final_three": 12.0, "winner": 20.0, "confessional_cry": 2.0,
+    "penalty": -2.0, "quit_game": -25.0
 }
 
 
@@ -57,8 +49,6 @@ class WeeklyStat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('survivor.id'))
     week = db.Column(db.Integer)
-
-    # New Checkbox-based Boolean fields
     survived = db.Column(db.Boolean, default=False)
     immunity = db.Column(db.Boolean, default=False)
     reward = db.Column(db.Boolean, default=False)
@@ -71,20 +61,19 @@ class WeeklyStat(db.Model):
     penalty = db.Column(db.Boolean, default=False)
     quit = db.Column(db.Boolean, default=False)
 
-    @property
-    def week_total(self):
+    def calculate_for_league(self, league_pts):
         t = 0
-        if self.survived:  t += POINTS_CONFIG["survive_episode"]
-        if self.immunity:  t += POINTS_CONFIG["win_immunity"]
-        if self.reward:    t += POINTS_CONFIG["win_reward"]
-        if self.advantage: t += POINTS_CONFIG["found_advantage"]
-        if self.merge:     t += POINTS_CONFIG["made_merge"]
-        if self.f5:        t += POINTS_CONFIG["final_five"]
-        if self.f3:        t += POINTS_CONFIG["final_three"]
-        if self.winner:    t += POINTS_CONFIG["winner"]
-        if self.crying:    t += POINTS_CONFIG["confessional_cry"]
-        if self.penalty:   t += POINTS_CONFIG["penalty"]
-        if self.quit:      t += POINTS_CONFIG["quit_game"]
+        if self.survived:  t += league_pts.get("survive_episode", 0)
+        if self.immunity:  t += league_pts.get("win_immunity", 0)
+        if self.reward:    t += league_pts.get("win_reward", 0)
+        if self.advantage: t += league_pts.get("found_advantage", 0)
+        if self.merge:     t += league_pts.get("made_merge", 0)
+        if self.f5:        t += league_pts.get("final_five", 0)
+        if self.f3:        t += league_pts.get("final_three", 0)
+        if self.winner:    t += league_pts.get("winner", 0)
+        if self.crying:    t += league_pts.get("confessional_cry", 0)
+        if self.penalty:   t += league_pts.get("penalty", 0)
+        if self.quit:      t += league_pts.get("quit_game", 0)
         return t
 
 
@@ -92,6 +81,10 @@ class League(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     invite_code = db.Column(db.String(10), unique=True)
+    settings_json = db.Column(db.Text, nullable=True)
+
+    def get_points(self):
+        return json.loads(self.settings_json) if self.settings_json else POINTS_CONFIG
 
 
 class Roster(db.Model):
@@ -112,15 +105,12 @@ def sync_players():
         r.encoding = 'utf-8'
         reader = csv.DictReader(StringIO(r.text))
         for row in reader:
-            name = row.get('Name', '').strip()
-            img = row.get('Image Link', '').strip()
-            seas = row.get('What Season?', '').strip()
-            desc = row.get('Details', '').strip()
+            name, img, seas, desc = row.get('Name', '').strip(), row.get('Image Link', '').strip(), row.get(
+                'What Season?', '').strip(), row.get('Details', '').strip()
             if not name: continue
             p = Survivor.query.filter_by(name=name).first()
             if not p:
-                p = Survivor(name=name, image_url=img, season=seas, details=desc)
-                db.session.add(p)
+                db.session.add(Survivor(name=name, image_url=img, season=seas, details=desc))
             else:
                 p.image_url, p.season, p.details = img, seas, desc
         db.session.commit()
@@ -133,13 +123,9 @@ def get_roster_data(roster):
     c1 = db.session.get(Survivor, roster.cap1_id) if roster.cap1_id else None
     c2 = db.session.get(Survivor, roster.cap2_id) if roster.cap2_id else None
     c3 = db.session.get(Survivor, roster.cap3_id) if roster.cap3_id else None
-    regs = []
-    if roster.regular_ids:
-        for rid in roster.regular_ids.split(','):
-            if rid.strip().isdigit():
-                p = db.session.get(Survivor, int(rid))
-                if p: regs.append(p)
-    return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": regs}
+    regs = [db.session.get(Survivor, int(rid)) for rid in (roster.regular_ids or "").split(',') if
+            rid.strip().isdigit()]
+    return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": [r for r in regs if r]}
 
 
 # --- ROUTES ---
@@ -158,35 +144,17 @@ def home():
     leagues = []
     if 'user_id' in session:
         my_rosters = Roster.query.filter_by(user_id=session['user_id']).all()
-        league_ids = [r.league_id for r in my_rosters]
-        if league_ids: leagues = League.query.filter(League.id.in_(league_ids)).all()
+        leagues = League.query.filter(League.id.in_([r.league_id for r in my_rosters])).all() if my_rosters else []
     return render_template('home.html', user_leagues=leagues, cast=all_cast)
-
-
-@app.route('/player/<int:player_id>')
-def player_profile(player_id):
-    p_obj = db.session.get(Survivor, player_id)
-    if not p_obj: return redirect(url_for('home'))
-    # Calculate totals based on boolean occurrences
-    totals = {
-        'surv': sum(1 for s in p_obj.stats if s.survived),
-        'imm': sum(1 for s in p_obj.stats if s.immunity),
-        'adv': sum(1 for s in p_obj.stats if s.advantage),
-        'cry': sum(1 for s in p_obj.stats if s.crying),
-        'score': p_obj.points
-    }
-    return render_template('player_profile.html', p=p_obj, totals=totals)
 
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        username, email, password = request.form.get('username'), request.form.get('email'), request.form.get(
-            'password')
-        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
-        new_u = User(username=username, email=email, password=hashed_pw)
+        hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
+        new_u = User(username=request.form.get('username'), email=request.form.get('email'), password=hashed_pw)
         try:
-            db.session.add(new_u)
+            db.session.add(new_u);
             db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
             return redirect(url_for('home'))
@@ -216,9 +184,18 @@ def logout():
 @app.route('/create_league', methods=['POST'])
 def create_league():
     if 'user_id' not in session: return redirect(url_for('login'))
+    return render_template('create_league_config.html', league_name=request.form.get('league_name', 'New League'),
+                           default_points=POINTS_CONFIG)
+
+
+@app.route('/finalize_league', methods=['POST'])
+def finalize_league():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    custom_pts = {key: float(request.form.get(f'val_{key}', 0)) if request.form.get(f'active_{key}') == 'on' else 0 for
+                  key in POINTS_CONFIG.keys()}
     code = str(uuid.uuid4())[:6].upper()
-    new_l = League(name=request.form.get('league_name', 'New League'), invite_code=code)
-    db.session.add(new_l)
+    new_l = League(name=request.form.get('league_name'), invite_code=code, settings_json=json.dumps(custom_pts))
+    db.session.add(new_l);
     db.session.flush()
     db.session.add(Roster(league_id=new_l.id, user_id=session['user_id']))
     db.session.commit()
@@ -227,8 +204,7 @@ def create_league():
 
 @app.route('/league-created/<code>')
 def league_success(code):
-    league = League.query.filter_by(invite_code=code).first_or_404()
-    return render_template('league_success.html', league=league)
+    return render_template('league_success.html', league=League.query.filter_by(invite_code=code).first_or_404())
 
 
 @app.route('/join_league', methods=['POST'])
@@ -248,32 +224,29 @@ def join_league():
 def league_dashboard(code):
     if 'user_id' not in session: return redirect(url_for('login'))
     league = League.query.filter_by(invite_code=code).first_or_404()
+    l_pts = league.get_points()
     target_username = request.args.get('view_user', session.get('username'))
     all_rosters = Roster.query.filter_by(league_id=league.id).all()
 
     leaderboard = []
     for r in all_rosters:
         if not r.owner: continue
-        is_drafting = (r.cap1_id is None)
         score = 0.0
-        if not is_drafting:
+        if r.cap1_id:
             d = get_roster_data(r)
-            score += (d['cap1'].points * 2.0) + (d['cap2'].points * 1.5) + (d['cap3'].points * 1.25)
-            score += sum(p.points for p in d['regs'])
-        leaderboard.append({'user': r.owner.username, 'score': round(score, 1), 'is_drafting': is_drafting})
+            score += sum(s.calculate_for_league(l_pts) for s in d['cap1'].stats) * 2.0
+            score += sum(s.calculate_for_league(l_pts) for s in d['cap2'].stats) * 1.5
+            score += sum(s.calculate_for_league(l_pts) for s in d['cap3'].stats) * 1.25
+            for p in d['regs']: score += sum(s.calculate_for_league(l_pts) for s in p.stats)
+        leaderboard.append({'user': r.owner.username, 'score': round(score, 1), 'is_drafting': r.cap1_id is None})
 
     leaderboard = sorted(leaderboard, key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
+    available = Survivor.query.filter_by(is_out=False).all()
 
-    taken = []
-    for r in all_rosters:
-        taken.extend([r.cap1_id, r.cap2_id, r.cap3_id])
-        if r.regular_ids: taken.extend([int(x) for x in r.regular_ids.split(',') if x.strip()])
-
-    available = Survivor.query.filter(~Survivor.id.in_([t for t in taken if t]), Survivor.is_out == False).all()
     return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r),
-                           target_username=target_username, available=available)
+                           target_username=target_username, available=available, league_pts=l_pts)
 
 
 @app.route('/draft/<code>', methods=['POST'])
@@ -291,51 +264,53 @@ def draft(code):
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
-    # 1. Check if already authenticated in this session
     if not session.get('admin_authenticated'):
-        # If they are submitting the password via the gatekeeper form
-        if request.method == 'POST' and request.form.get('admin_pw'):
-            if request.form.get('admin_pw') == os.getenv("ADMIN_PASSWORD", "JeffP"):
-                session['admin_authenticated'] = True
-                return redirect(url_for('admin_scoring'))
-            else:
-                flash("Incorrect Admin Password.")
-                return render_template('admin_login.html')
-
-        # Otherwise, show the login gatekeeper
+        if request.method == 'POST' and request.form.get('admin_pw') == os.getenv("ADMIN_PASSWORD", "JeffP"):
+            session['admin_authenticated'] = True
+            return redirect(url_for('admin_scoring'))
         return render_template('admin_login.html')
 
-    # 2. Normal Admin Logic (This runs once authenticated)
     survivors = Survivor.query.all()
     if request.method == 'POST':
         if 'sync_all' in request.form:
             sync_players()
-            flash("Players synced!")
         else:
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
                 if request.form.get(f'voted_out_{s.id}'): s.is_out = True
-                stat = WeeklyStat(
-                    player_id=s.id, week=wn,
-                    survived=request.form.get(f'surv_{s.id}') == 'on',
-                    immunity=request.form.get(f'imm_{s.id}') == 'on',
-                    reward=request.form.get(f'rew_{s.id}') == 'on',
-                    advantage=request.form.get(f'adv_{s.id}') == 'on',
-                    merge=request.form.get(f'mrg_{s.id}') == 'on',
-                    f5=request.form.get(f'f5_{s.id}') == 'on',
-                    f3=request.form.get(f'f3_{s.id}') == 'on',
-                    winner=request.form.get(f'win_{s.id}') == 'on',
-                    crying=request.form.get(f'cry_{s.id}') == 'on',
-                    penalty=request.form.get(f'pnl_{s.id}') == 'on',
-                    quit=request.form.get(f'quit_{s.id}') == 'on'
-                )
-                s.points += stat.week_total
+                stat = WeeklyStat(player_id=s.id, week=wn, survived=request.form.get(f'surv_{s.id}') == 'on',
+                                  immunity=request.form.get(f'imm_{s.id}') == 'on',
+                                  reward=request.form.get(f'rew_{s.id}') == 'on',
+                                  advantage=request.form.get(f'adv_{s.id}') == 'on',
+                                  merge=request.form.get(f'mrg_{s.id}') == 'on',
+                                  f5=request.form.get(f'f5_{s.id}') == 'on', f3=request.form.get(f'f3_{s.id}') == 'on',
+                                  winner=request.form.get(f'win_{s.id}') == 'on',
+                                  crying=request.form.get(f'cry_{s.id}') == 'on',
+                                  penalty=request.form.get(f'pnl_{s.id}') == 'on',
+                                  quit=request.form.get(f'quit_{s.id}') == 'on')
                 db.session.add(stat)
-            db.session.commit()
-            flash(f"Scores committed for Week {wn}!")
+            db.session.commit();
+            flash(f"Week {wn} saved!")
         return redirect(url_for('admin_scoring'))
-
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
+
+
+@app.route('/player/<int:player_id>')
+def player_profile(player_id):
+    p_obj = db.session.get(Survivor, player_id)
+    if not p_obj:
+        return redirect(url_for('home'))
+
+    # This ensures the profile still shows points correctly
+    # even with custom league scoring active elsewhere
+    totals = {
+        'surv': sum(1 for s in p_obj.stats if s.survived),
+        'imm': sum(1 for s in p_obj.stats if s.immunity),
+        'adv': sum(1 for s in p_obj.stats if s.advantage),
+        'cry': sum(1 for s in p_obj.stats if s.crying),
+        'score': p_obj.points  # Global base points
+    }
+    return render_template('player_profile.html', p=p_obj, totals=totals)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))

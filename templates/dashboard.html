@@ -2,198 +2,181 @@
 {% block content %}
 
 <div class="row g-4">
-    <div class="col-md-3">
-        <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50">League Standings</h6>
-        <div class="list-group list-group-flush bg-black">
-            {% for e in leaderboard %}
-            <a href="{{ url_for('league_dashboard', code=league.invite_code, view_user=e.user) }}"
-               class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2 text-decoration-none transition">
-                <span class="small {% if e.user == target_username %}text-accent fw-900{% else %}text-white{% endif %}">
-                    {{ e.user|upper }}
-                    {% if e.user == session.username %}<span class="x-small text-white-50">(YOU)</span>{% endif %}
-                </span>
-                {% if e.is_drafting %}
-                    <span class="badge bg-secondary x-small opacity-50">DRAFTING</span>
-                {% else %}
-                    <span class="fw-900 {% if e.user == target_username %}text-accent{% else %}text-white-50{% endif %}">
-                        {{ e.score }}
+    <div class="col-md-3 order-2 order-md-1">
+        <div class="pro-card border-secondary shadow-sm">
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">League Standings</h6>
+            <div class="list-group list-group-flush bg-black">
+                {% for e in leaderboard %}
+                <a href="{{ url_for('league_dashboard', code=league.invite_code, view_user=e.user) }}"
+                   class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2 text-decoration-none transition">
+                    <span class="small {% if e.user == target_username %}text-accent fw-900{% else %}text-white{% endif %}">
+                        {{ e.user|upper }}
+                        {% if e.user == session.username %}<span class="x-small text-white-50">(YOU)</span>{% endif %}
                     </span>
-                {% endif %}
-            </a>
-            {% endfor %}
+                    <span class="fw-900 {% if e.user == target_username %}text-accent{% else %}text-white-50{% endif %}">
+                        {{ e.score|round(1) }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
         </div>
-
-        {% if target_username != session.username %}
-        <div class="mt-4">
-            <a href="{{ url_for('league_dashboard', code=league.invite_code) }}" class="btn btn-outline-light btn-sm w-100 fw-900 uppercase ls-1">
-                &larr; My Tribe
-            </a>
-        </div>
-        {% endif %}
     </div>
 
-    <div class="col-md-9">
-        {# SAFETY CHECK: Only show roster if at least one captain is selected #}
+    <div class="col-md-9 order-1 order-md-2">
         {% if my_tribe and my_tribe.cap1 %}
-            <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-secondary pb-3">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 border-bottom border-secondary pb-3 gap-2">
                 <div>
-                    <h2 class="fw-900 uppercase m-0">
-                        {{ "My Tribe" if target_username == session.username else target_username|upper ~ "'S TRIBE" }}
-                    </h2>
+                    <h2 class="fw-900 uppercase m-0">{{ target_username|upper }}'S TRIBE</h2>
                     <div class="small fw-900 uppercase ls-2 text-success">Active Roster 🔒</div>
                 </div>
-                <div class="text-end">
-                    <div class="small fw-900 text-white-50 uppercase">Total Score</div>
+                <div class="text-md-end">
+                    <div class="small fw-900 text-white-50 uppercase" style="font-size: 0.6rem;">Total Tribe Score</div>
                     {% set ns = namespace(total=0) %}
-                    {# Calculation only runs because we confirmed cap1 exists #}
                     {% set ns.total = (my_tribe.cap1.points*2) + (my_tribe.cap2.points*1.5) + (my_tribe.cap3.points*1.25) %}
                     {% for p in my_tribe.regs %}{% set ns.total = ns.total + p.points %}{% endfor %}
-                    <h1 class="fw-900 m-0 display-4 text-accent">{{ ns.total|round(1) }}</h1>
+                    <h1 class="fw-900 m-0 display-4 text-accent lh-1">{{ ns.total|round(1) }}</h1>
                 </div>
             </div>
 
-            <div class="tribe-stack">
+            <div class="tribe-stack mb-4">
                 {% for cap, mult, label, color in [
                     (my_tribe.cap1, 2.0, 'Gold Captain', 'var(--accent)'),
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (my_tribe.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
-                    {% if cap %}
-                    <div class="pro-card mb-3" style="border-left: 6px solid {{ color }}">
+                    <div class="pro-card mb-3 p-2 border-start" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
                         <div class="d-flex align-items-center">
-                            <a href="{{ url_for('player_profile', player_id=cap.id) }}">
-                                <img src="{{ cap.image_url }}" style="width: 85px; height: 85px; border-radius: 2px; object-fit: cover; object-position: top;">
-                            </a>
+                            <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
                             <div class="flex-grow-1 ms-3">
-                                <div class="fw-900 uppercase" style="font-size: 0.7rem; color: {{ color }}">{{ label }} {{ mult }}x</div>
-                                <h4 class="fw-900 m-0 uppercase">{{ cap.name }}</h4>
-                                <div class="x-small text-white-50 fw-bold">S{{ cap.season }}</div>
+                                <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
+                                <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
+                                <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points }} Base Pts</div>
                             </div>
-                            <div class="text-end pe-3">
-                                <div class="x-small fw-900 text-white-50">SCORE</div>
-                                <div class="fw-900 fs-2 text-white">{{ (cap.points * mult)|round(1) }}</div>
+                            <div class="text-end pe-2">
+                                <div class="x-small fw-900 text-white-50">TOTAL</div>
+                                <div class="fw-900 fs-4 text-white">{{ (cap.points * mult)|round(1) }}</div>
                             </div>
                         </div>
                     </div>
-                    {% endif %}
                 {% endfor %}
-
-                <h6 class="fw-900 uppercase ls-2 mt-4 mb-3 text-white-50">Active Members</h6>
-                <div class="row g-3">
-                    {% for p in my_tribe.regs %}
-                    <div class="col-md-4">
-                        <div class="pro-card border-secondary h-100 p-0 overflow-hidden">
-                            <a href="{{ url_for('player_profile', player_id=p.id) }}">
-                                <img src="{{ p.image_url }}" style="width: 100%; height: 160px; object-fit: cover; object-position: top;">
-                            </a>
-                            <div class="p-2 text-center bg-black border-top border-secondary">
-                                <div class="fw-900 uppercase small text-white">{{ p.name }}</div>
-                                <div class="text-accent fw-900 x-small">{{ p.points }} PTS</div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
 
-        {# Show Draft form if it's the current user and they haven't finished #}
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">Regulars (1.0x)</h6>
+            <div class="row g-2">
+                {% for p in my_tribe.regs %}
+                <div class="col-6 col-md-4">
+                    <div class="pro-card border-secondary p-0 overflow-hidden h-100">
+                        <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
+                        <div class="p-2 text-center bg-black">
+                            <div class="fw-900 uppercase text-truncate" style="font-size: 0.7rem;">{{ p.name }}</div>
+                            <div class="text-accent fw-900" style="font-size: 0.65rem;">{{ p.points|round(1) }} PTS</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
         {% elif target_username == session.username %}
-            <div class="pro-card border-accent p-4 shadow-lg">
+            <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
-                    <h2 class="fw-900 uppercase text-accent m-0">Draft Your Tribe</h2>
-                    <p class="text-white-50 small">Face-focused drafting enabled. Select exactly 3 Regulars to unlock.</p>
+                    <h2 class="fw-900 uppercase text-accent m-0 ls-1">Assembling Your Tribe</h2>
+                    <p class="text-white-50 x-small">Click card to select. Click <span class="text-info">ⓘ</span> for details.</p>
+                </div>
+
+                <div class="mb-4">
+                    <input type="text" id="playerSearch" class="form-control bg-black text-white border-secondary py-2" placeholder="Search Survivor Name...">
                 </div>
 
                 <form action="{{ url_for('draft', code=league.invite_code) }}" method="POST" id="draftForm">
-                    <div class="row g-3 mb-5">
-                        {% for cap_key, label, color in [
-                            ('cap1', 'Gold Captain (2.0x)', 'var(--accent)'),
-                            ('cap2', 'Silver Captain (1.5x)', '#fff'),
-                            ('cap3', 'Bronze Captain (1.25x)', '#64748b')
-                        ] %}
-                        <div class="col-md-4">
-                            <label class="x-small fw-900 uppercase mb-2" style="color: {{ color }}">{{ label }}</label>
-                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary" required>
-                                <option value="">Select Survivor...</option>
-                                {% for p in available %}
-                                <option value="{{ p.id }}">{{ p.name }} (S{{ p.season }})</option>
-                                {% endfor %}
+                    <div class="row g-2 mb-4">
+                        {% for cap_key, label, color in [('cap1', 'Gold (2x)', 'var(--accent)'), ('cap2', 'Silver (1.5x)', '#fff'), ('cap3', 'Bronze (1.25x)', '#64748b')] %}
+                        <div class="col-12 col-md-4">
+                            <label class="x-small fw-900 uppercase mb-1" style="color: {{ color }}">{{ label }}</label>
+                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small" required>
+                                <option value="">Select...</option>
+                                {% for p in available|sort(attribute='name') %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
                             </select>
                         </div>
                         {% endfor %}
                     </div>
 
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-900 uppercase ls-2 text-white-50 m-0">Active Members (Select 3)</h6>
-                            <span id="counter" class="badge bg-secondary fw-900">0 / 3 SELECTED</span>
-                        </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-900 uppercase ls-2 text-white-50 m-0 small">Regulars (Select 3)</h6>
+                        <span id="counter" class="badge bg-secondary fw-900">0 / 3</span>
+                    </div>
 
-                        <div class="row g-2" style="max-height: 550px; overflow-y: auto; overflow-x: hidden;">
-                            {% for p in available %}
-                            <div class="col-6 col-md-3">
-                                <input type="checkbox" name="regs" value="{{ p.id }}" id="p{{ p.id }}" class="btn-check reg-cb" autocomplete="off">
-                                <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="p{{ p.id }}">
-                                    <div class="position-relative overflow-hidden" style="background: #111;">
-                                        <img src="{{ p.image_url }}" class="img-fluid w-100"
-                                             style="height: 200px; object-fit: cover; object-position: top; transition: transform 0.5s ease;">
-                                        <div class="points-tag">{{ p.points }} PTS</div>
-                                        <div class="season-tag">S{{ p.season }}</div>
-                                        <div class="detail-overlay p-2">
-                                            <p class="x-small text-white m-0 lh-sm">{{ p.details[:100] }}...</p>
-                                            <a href="{{ url_for('player_profile', player_id=p.id) }}" target="_blank" class="btn btn-accent btn-sm py-0 px-2 mt-1 fw-900" style="font-size: 0.6rem;">BIO &rarr;</a>
-                                        </div>
-                                    </div>
-                                    <div class="p-2 bg-black border-top border-secondary">
-                                        <div class="fw-900 uppercase x-small text-truncate text-white">{{ p.name }}</div>
-                                    </div>
+                    <div class="row g-2 mb-4 overflow-auto" style="max-height: 450px;" id="playerGallery">
+                        {% for p in available|sort(attribute='name') %}
+                        <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}">
+                            <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
+                            <div class="position-relative">
+                                <button type="button" class="btn-info-pop"
+                                        onclick="showQuickLook('{{ p.name }}', '{{ p.image_url }}', '{{ p.season }}', '{{ p.details|replace("'", "\\'") }}')">ⓘ</button>
+
+                                <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
+                                    <img src="{{ p.image_url }}" class="w-100" style="aspect-ratio: 1/1; object-fit: cover; object-position: top;">
+                                    <div class="name-overlay">{{ p.name.split(' ')[0] }}</div>
                                 </label>
                             </div>
-                            {% endfor %}
                         </div>
+                        {% endfor %}
                     </div>
-                    <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 3 Regulars to Lock In 🔒</button>
+
+                    <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 3 Regulars</button>
                 </form>
-            </div>
-        {% else %}
-            <div class="pro-card border-secondary text-center py-5">
-                <h3 class="fw-900 text-white-50 uppercase ls-2 mb-3">Draft Pending</h3>
-                <p class="text-white-50 mb-4">{{ target_username }} is still assembling their tribe.</p>
-                <a href="{{ url_for('league_dashboard', code=league.invite_code) }}" class="btn btn-accent fw-900 px-5">Back to My Tribe</a>
             </div>
         {% endif %}
     </div>
 </div>
 
+<div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-accent text-white">
+            <div class="modal-body p-0 position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="modalImg" src="" class="w-100 shadow" style="height: 300px; object-fit: cover; object-position: top;">
+                <div class="p-4">
+                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1 small"></h6>
+                    <h2 id="modalName" class="fw-900 uppercase mb-3"></h2>
+                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
-    .transition { transition: all 0.2s ease; }
-    .transition:hover { border-bottom-color: var(--accent) !important; padding-left: 8px !important; }
-    .points-tag, .season-tag {
-        position: absolute; background: rgba(0,0,0,0.85); color: white;
-        font-size: 0.6rem; padding: 2px 6px; font-weight: 900; border-radius: 2px;
-        z-index: 2;
+    /* Info Button Over Image */
+    .btn-info-pop {
+        position: absolute; top: 5px; right: 5px; z-index: 10;
+        background: rgba(0,0,0,0.7); color: white; border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 50%; width: 22px; height: 22px; font-size: 11px;
+        display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
     }
-    .points-tag { top: 8px; right: 8px; color: var(--accent); border: 1px solid var(--accent); }
-    .season-tag { top: 8px; left: 8px; border: 1px solid rgba(255,255,255,0.2); }
-    .detail-overlay {
-        position: absolute; bottom: 0; left: 0; right: 0;
-        background: linear-gradient(transparent, rgba(0,0,0,0.95) 40%);
-        height: 0; transition: height 0.3s ease;
-        overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
-        z-index: 3;
+    .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); }
+
+    /* Selection Styles */
+    .player-card-label { border-radius: 6px; overflow: hidden; transition: transform 0.1s; }
+    .btn-check:checked + .player-card-label { border-color: var(--accent) !important; transform: scale(0.96); }
+    .name-overlay {
+        position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8);
+        color: white; font-size: 0.6rem; font-weight: 900; text-transform: uppercase; padding: 2px 0; text-align: center;
     }
-    .player-card-label:hover .detail-overlay { height: 100%; }
-    .player-card-label:hover img { transform: scale(1.05); }
-    .btn-check:checked + .player-card-label {
-        border-color: var(--accent) !important;
-        box-shadow: 0 0 20px rgba(254, 215, 0, 0.3);
-    }
-    .btn-check:checked + .player-card-label img { filter: saturate(1.2) brightness(1.1); }
-    .form-select { border-radius: 0; border-width: 2px; }
-    .form-select:focus { box-shadow: none; border-color: var(--accent); }
+    .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
+
+    .hidden { display: none; }
 </style>
 
 <script>
+    // Search Filter Logic
+    document.getElementById('playerSearch')?.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.player-item').forEach(item => {
+            item.classList.toggle('hidden', !item.getAttribute('data-name').includes(term));
+        });
+    });
+
+    // Selection Logic
     const checks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
     const counter = document.getElementById('counter');
@@ -201,23 +184,27 @@
     checks.forEach(check => {
         check.addEventListener('change', () => {
             const count = document.querySelectorAll('.reg-cb:checked').length;
-            counter.innerText = `${count} / 3 SELECTED`;
-
+            if(counter) counter.innerText = `${count} / 3`;
             if (count === 3) {
-                btn.disabled = false;
-                btn.classList.remove('btn-secondary', 'opacity-50');
-                btn.classList.add('btn-accent');
+                btn.disabled = false; btn.classList.replace('btn-secondary', 'btn-accent'); btn.classList.remove('opacity-50');
                 btn.innerText = "LOCK IN TRIBE 🔒";
                 checks.forEach(c => { if(!c.checked) c.disabled = true; });
             } else {
-                btn.disabled = true;
-                btn.classList.add('btn-secondary', 'opacity-50');
-                btn.classList.remove('btn-accent');
-                btn.innerText = `SELECT ${3 - count} MORE REGULARS`;
+                btn.disabled = true; btn.classList.replace('btn-accent', 'btn-secondary'); btn.classList.add('opacity-50');
+                btn.innerText = `SELECT ${3 - count} MORE`;
                 checks.forEach(c => c.disabled = false);
             }
         });
     });
+
+    // Bio Quick Look Logic
+    function showQuickLook(name, img, season, details) {
+        document.getElementById('modalName').innerText = name;
+        document.getElementById('modalImg').src = img;
+        document.getElementById('modalSeason').innerText = "Season: " + season;
+        document.getElementById('modalDetails').innerText = details;
+        new bootstrap.Modal(document.getElementById('quickLookModal')).show();
+    }
 </script>
 
 {% endblock %}
