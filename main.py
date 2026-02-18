@@ -12,7 +12,6 @@ db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-# Using v7 to ensure the settings_json column is recognized
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v7.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -41,7 +40,7 @@ class Survivor(db.Model):
     image_url = db.Column(db.String(500))
     season = db.Column(db.String(100))
     details = db.Column(db.Text)
-    points = db.Column(db.Float, default=0.0)  # Global/Base points
+    points = db.Column(db.Float, default=0.0)
     is_out = db.Column(db.Boolean, default=False)
     stats = db.relationship('WeeklyStat', backref='player', lazy=True)
 
@@ -90,8 +89,9 @@ class League(db.Model):
 
 class Roster(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    league_id = db.Column(db.Integer, db.ForeignKey('league.id'))
+    league_id = db.Column(db.Integer, db.ForeignKey('league.id'), nullable=True)  # Nullable for Global entries
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    is_global = db.Column(db.Boolean, default=False)
     cap1_id = db.Column(db.Integer)
     cap2_id = db.Column(db.Integer)
     cap3_id = db.Column(db.Integer)
@@ -111,14 +111,12 @@ def sync_players():
             seas = row.get('What Season?', '').strip()
             desc = row.get('Details', '').strip()
             if not name: continue
-
             p = Survivor.query.filter_by(name=name).first()
             if not p:
                 db.session.add(Survivor(name=name, image_url=img, season=seas, details=desc))
             else:
                 p.image_url, p.season, p.details = img, seas, desc
         db.session.commit()
-        print("Players Synced!")
     except Exception as e:
         print(f"Sync error: {e}")
 
@@ -131,6 +129,18 @@ def get_roster_data(roster):
     regs = [db.session.get(Survivor, int(rid)) for rid in (roster.regular_ids or "").split(',') if
             rid.strip().isdigit()]
     return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": [r for r in regs if r]}
+
+
+def calculate_roster_score(roster, pts_config):
+    data = get_roster_data(roster)
+    if not data or not data['cap1']: return 0.0
+    score = 0.0
+    score += sum(s.calculate_for_league(pts_config) for s in data['cap1'].stats) * 2.0
+    score += sum(s.calculate_for_league(pts_config) for s in data['cap2'].stats) * 1.5
+    score += sum(s.calculate_for_league(pts_config) for s in data['cap3'].stats) * 1.25
+    for p in data['regs']:
+        score += sum(s.calculate_for_league(pts_config) for s in p.stats)
+    return round(score, 1)
 
 
 # --- ROUTES ---
@@ -147,10 +157,27 @@ def setup_database():
 def home():
     all_cast = Survivor.query.all()
     leagues = []
+    user_in_global = False
     if 'user_id' in session:
         my_rosters = Roster.query.filter_by(user_id=session['user_id']).all()
-        leagues = League.query.filter(League.id.in_([r.league_id for r in my_rosters])).all() if my_rosters else []
-    return render_template('home.html', user_leagues=leagues, cast=all_cast)
+        leagues = League.query.filter(League.id.in_([r.league_id for r in my_rosters if r.league_id])).all()
+        user_in_global = any(r.is_global for r in my_rosters)
+
+    # Global Top 5 Logic
+    global_rosters = Roster.query.filter_by(is_global=True).all()
+    global_leaderboard = []
+    for r in global_rosters:
+        if r.owner:
+            global_leaderboard.append({'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)})
+
+    global_top_5 = sorted(global_leaderboard, key=lambda x: x['score'], reverse=True)[:5]
+
+    return render_template('home.html',
+                           user_leagues=leagues,
+                           cast=all_cast,
+                           global_top_5=global_top_5,
+                           total_global_entrants=len(global_rosters),
+                           user_in_global=user_in_global)
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -237,14 +264,8 @@ def league_dashboard(code):
     leaderboard = []
     for r in all_rosters:
         if not r.owner: continue
-        score = 0.0
-        if r.cap1_id:
-            d = get_roster_data(r)
-            score += sum(s.calculate_for_league(l_pts) for s in d['cap1'].stats) * 2.0
-            score += sum(s.calculate_for_league(l_pts) for s in d['cap2'].stats) * 1.5
-            score += sum(s.calculate_for_league(l_pts) for s in d['cap3'].stats) * 1.25
-            for p in d['regs']: score += sum(s.calculate_for_league(l_pts) for s in p.stats)
-        leaderboard.append({'user': r.owner.username, 'score': round(score, 1), 'is_drafting': r.cap1_id is None})
+        score = calculate_roster_score(r, l_pts)
+        leaderboard.append({'user': r.owner.username, 'score': score, 'is_drafting': r.cap1_id is None})
 
     leaderboard = sorted(leaderboard, key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
@@ -261,11 +282,40 @@ def draft(code):
     l = League.query.filter_by(invite_code=code).first_or_404()
     r = Roster.query.filter_by(league_id=l.id, user_id=session['user_id']).first()
     if r:
-        r.cap1_id, r.cap2_id, r.cap3_id = int(request.form.get('cap1')), int(request.form.get('cap2')), int(
-            request.form.get('cap3'))
+        r.cap1_id = int(request.form.get('cap1'))
+        r.cap2_id = int(request.form.get('cap2'))
+        r.cap3_id = int(request.form.get('cap3'))
         r.regular_ids = ",".join(request.form.getlist('regs'))
         db.session.commit()
     return redirect(url_for('league_dashboard', code=code))
+
+
+@app.route('/global-leaderboard')
+def global_leaderboard():
+    global_rosters = Roster.query.filter_by(is_global=True).all()
+    leaderboard = []
+    for r in global_rosters:
+        if r.owner:
+            leaderboard.append({'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)})
+
+    leaderboard = sorted(leaderboard, key=lambda x: x['score'], reverse=True)
+    return render_template('global_standings.html',
+                           full_global_leaderboard=leaderboard,
+                           total_global_entrants=len(leaderboard))
+
+
+@app.route('/join-global', methods=['POST'])
+def join_global():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    existing = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+    if not existing:
+        db.session.add(Roster(user_id=session['user_id'], is_global=True))
+        db.session.commit()
+        flash("Joined the Global Tournament! Now set your Tribe.")
+        # Redirect to a modified dashboard for global drafting
+        return redirect(url_for('home'))
+    flash("Already in the tournament.")
+    return redirect(url_for('home'))
 
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
@@ -279,24 +329,18 @@ def admin_scoring():
     survivors = Survivor.query.all()
     if request.method == 'POST':
         if 'sync_all' in request.form:
-            sync_players()
-            flash("Players Synced from Sheet!")
+            sync_players();
+            flash("Players Synced!")
         else:
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
                 if request.form.get(f'voted_out_{s.id}'): s.is_out = True
-                stat = WeeklyStat(player_id=s.id, week=wn, survived=request.form.get(f'surv_{s.id}') == 'on',
+                stat = WeeklyStat(player_id=s.id, week=wn,
+                                  survived=request.form.get(f'surv_{s.id}') == 'on',
                                   immunity=request.form.get(f'imm_{s.id}') == 'on',
                                   reward=request.form.get(f'rew_{s.id}') == 'on',
                                   advantage=request.form.get(f'adv_{s.id}') == 'on',
-                                  merge=request.form.get(f'mrg_{s.id}') == 'on',
-                                  f5=request.form.get(f'f5_{s.id}') == 'on', f3=request.form.get(f'f3_{s.id}') == 'on',
-                                  winner=request.form.get(f'win_{s.id}') == 'on',
-                                  crying=request.form.get(f'cry_{s.id}') == 'on',
-                                  penalty=request.form.get(f'pnl_{s.id}') == 'on',
-                                  quit=request.form.get(f'quit_{s.id}') == 'on')
-
-                # Update the GLOBAL survivor points for the profile page
+                                  crying=request.form.get(f'cry_{s.id}') == 'on')
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
             db.session.commit();
@@ -312,35 +356,11 @@ def player_profile(player_id):
     totals = {
         'surv': sum(1 for s in p_obj.stats if s.survived),
         'imm': sum(1 for s in p_obj.stats if s.immunity),
-        'adv': sum(1 for s in p_obj.stats if s.advantage),
-        'cry': sum(1 for s in p_obj.stats if s.crying),
         'score': round(p_obj.points, 1)
     }
     return render_template('player_profile.html', p=p_obj, totals=totals)
 
 
-@app.route('/nuke_and_pave')
-def nuke_and_pave():
-    db.drop_all()
-    db.create_all()
-    sync_players()
-    return "Database reset and Players Re-Synced! <a href='/'>Go Home</a>"
-
-
-@app.route('/global-leaderboard')
-def global_leaderboard():
-    # 1. Fetch your global data here
-    # 2. total_entrants = count of users in your global table
-    # 3. full_list = all users sorted by score
-    return render_template('global_standings.html',
-                           full_global_leaderboard=full_list,
-                           total_global_entrants=total_entrants)
-
-@app.route('/join-global', methods=['POST'])
-def join_global():
-    # Logic to add user to the global tournament
-    flash("Successfully joined the Global Tournament!")
-    return redirect(url_for('home'))
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
