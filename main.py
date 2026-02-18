@@ -94,7 +94,7 @@ class Roster(db.Model):
     cap1_id = db.Column(db.Integer)
     cap2_id = db.Column(db.Integer)
     cap3_id = db.Column(db.Integer)
-    regular_ids = db.Column(db.String(200))  # Stored as comma-separated string
+    regular_ids = db.Column(db.String(200))
 
 
 # --- HELPERS ---
@@ -131,7 +131,6 @@ def get_roster_data(roster):
             if rid.strip():
                 player = db.session.get(Survivor, int(rid))
                 if player: reg_list.append(player)
-
     return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": reg_list}
 
 
@@ -159,12 +158,12 @@ def home():
         user_in_global = any(r.is_global for r in my_rosters)
 
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    global_leaderboard = []
+    global_leaderboard_data = []
     for r in global_rosters:
         if r.owner:
-            global_leaderboard.append({'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)})
+            global_leaderboard_data.append({'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)})
 
-    global_top_5 = sorted(global_leaderboard, key=lambda x: x['score'], reverse=True)[:5]
+    global_top_5 = sorted(global_leaderboard_data, key=lambda x: x['score'], reverse=True)[:5]
     return render_template('home.html', user_leagues=leagues, cast=all_cast, global_top_5=global_top_5,
                            total_global_entrants=len(global_rosters), user_in_global=user_in_global)
 
@@ -175,12 +174,12 @@ def signup():
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         new_u = User(username=request.form.get('username'), email=request.form.get('email'), password=hashed_pw)
         try:
-            db.session.add(new_u);
+            db.session.add(new_u)
             db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
             return redirect(url_for('home'))
         except:
-            db.session.rollback();
+            db.session.rollback()
             flash("Username/Email already exists.")
     return render_template('signup.html')
 
@@ -188,8 +187,7 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u = User.query.filter(
-            (User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
+        u = User.query.filter((User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
             return redirect(url_for('home'))
@@ -199,7 +197,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.clear();
+    session.clear()
     return redirect(url_for('home'))
 
 
@@ -217,7 +215,7 @@ def finalize_league():
                   key in POINTS_CONFIG.keys()}
     code = str(uuid.uuid4())[:6].upper()
     new_l = League(name=request.form.get('league_name'), invite_code=code, settings_json=json.dumps(custom_pts))
-    db.session.add(new_l);
+    db.session.add(new_l)
     db.session.flush()
     db.session.add(Roster(league_id=new_l.id, user_id=session['user_id']))
     db.session.commit()
@@ -238,7 +236,7 @@ def join_league():
             db.session.add(Roster(league_id=l.id, user_id=session['user_id']))
             db.session.commit()
         return redirect(url_for('league_dashboard', code=l.invite_code))
-    flash("League not found.");
+    flash("League not found.")
     return redirect(url_for('home'))
 
 
@@ -269,10 +267,9 @@ def draft(code):
     if r:
         c1, c2, c3 = request.form.get('cap1'), request.form.get('cap2'), request.form.get('cap3')
         regs = request.form.getlist('regs')
-        # Duplicate prevention
         all_ids = [c1, c2, c3] + regs
         if len(all_ids) != len(set(all_ids)):
-            flash("You cannot draft the same player twice!");
+            flash("You cannot draft the same player twice!")
             return redirect(url_for('league_dashboard', code=code))
 
         r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
@@ -281,12 +278,14 @@ def draft(code):
     return redirect(url_for('league_dashboard', code=code))
 
 
+# FIX: Renamed function to match home.html {{ url_for('global_leaderboard') }}
 @app.route('/global-standings')
-def global_standings():
+def global_leaderboard():
     global_rosters = Roster.query.filter_by(is_global=True).all()
     lb = sorted(
-        [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
-         r.owner], key=lambda x: x['score'], reverse=True)
+        [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner],
+        key=lambda x: x['score'], reverse=True
+    )
     return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb))
 
 
@@ -320,7 +319,6 @@ def save_global_draft():
     c1, c2, c3 = request.form.get('cap1'), request.form.get('cap2'), request.form.get('cap3')
     regs = request.form.getlist('regs')
 
-    # Validation
     all_picks = [p for p in ([c1, c2, c3] + regs) if p]
     if len(all_picks) != len(set(all_picks)):
         flash("Error: Duplicate players detected.", "danger")
@@ -354,7 +352,7 @@ def admin_scoring():
     survivors = Survivor.query.all()
     if request.method == 'POST':
         if 'sync_all' in request.form:
-            sync_players();
+            sync_players()
             flash("Players Synced!")
         else:
             wn = int(request.form.get('week_num', 1))
@@ -370,7 +368,7 @@ def admin_scoring():
                 )
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
-            db.session.commit();
+            db.session.commit()
             flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
@@ -386,8 +384,8 @@ def player_profile(player_id):
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
-    db.drop_all();
-    db.create_all();
+    db.drop_all()
+    db.create_all()
     sync_players()
     return "Database reset! <a href='/'>Go Home</a>"
 
