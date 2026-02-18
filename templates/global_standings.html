@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="text-center mb-5">
+    <h1 class="display-4 fw-900 uppercase ls-2">World Standings</h1>
+    <p class="text-accent fw-bold uppercase ls-1">Survivor 50 Global Tournament</p>
+</div>
+
+<div class="pro-card border-secondary p-0 overflow-hidden">
+    <table class="table table-dark table-hover m-0">
+        <thead class="bg-darker">
+            <tr class="text-white-50 x-small uppercase ls-1">
+                <th class="ps-4 py-3">Rank</th>
+                <th class="py-3">Tribe Name</th>
+                <th class="py-3">Owner</th>
+                <th class="text-end pe-4 py-3">Points</th>
+            </tr>
+        </thead>
+        <tbody class="border-top-0">
+            {% for p in full_global_leaderboard %}
+            <tr class="align-middle {% if p.user == session.username %}bg-accent-soft{% endif %}">
+                <td class="ps-4 fw-900 text-accent">#{{ loop.index }}</td>
+                <td class="fw-900">{{ p.tribe_name|upper }}</td>
+                <td class="small text-white-50">{{ p.user }}</td>
+                <td class="text-end pe-4 fw-900 fs-5">{{ p.score }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .bg-darker { background: #050505; }
+    .bg-accent-soft { background: rgba(255, 204, 0, 0.05); }
+    th { border-bottom: 2px solid var(--border) !important; }
+    td { border-bottom: 1px solid var(--border) !important; }
+</style>
+{% endblock %}
