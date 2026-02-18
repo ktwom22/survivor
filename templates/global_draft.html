@@ -4,11 +4,15 @@
 <div class="row g-4">
     <div class="col-md-3 order-2 order-md-1">
         <div class="pro-card border-secondary shadow-sm mb-4">
-            <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">Global Leaders</h6>
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">Global Contest</h6>
             <div class="list-group list-group-flush bg-black">
+                <div class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2">
+                    <span class="small text-white uppercase">Status</span>
+                    <span class="badge bg-success fw-900">OPEN</span>
+                </div>
                 <div class="list-group-item bg-black border-secondary px-0 py-2">
-                    <span class="small text-accent fw-900 uppercase">Tournament Active</span>
-                    <div class="x-small text-white-50">Draft your tribe to appear here.</div>
+                    <div class="x-small text-white-50 uppercase">Entrants</div>
+                    <div class="small fw-900 text-accent">TOURNAMENT ACTIVE</div>
                 </div>
             </div>
         </div>
@@ -16,14 +20,18 @@
         <div class="pro-card border-accent bg-black shadow-sm">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Global Scoring</h6>
             <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
-                {% for key, val in config.items() %}
-                    {% if val != 0 %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
-                        <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
-                        <span class="small fw-900 text-white">{% if val > 0 %}+{% endif %}{{ val }}</span>
-                    </div>
-                    {% endif %}
-                {% endfor %}
+                {% if config %}
+                    {% for key, val in config.items() %}
+                        {% if val and val|float != 0 %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+                            <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
+                            <span class="small fw-900 text-white">{% if val|float > 0 %}+{% endif %}{{ val }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="x-small text-white-50 italic">Scoring data unavailable.</div>
+                {% endif %}
             </div>
             <p class="x-small text-white-50 mt-3 mb-0" style="font-size: 0.55rem; font-style: italic;">
                 * Multipliers: Gold (2x), Silver (1.5x), Bronze (1.25x).
@@ -35,30 +43,37 @@
         {% if roster and roster.cap1_id %}
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 border-bottom border-secondary pb-3 gap-2">
                 <div>
-                    <h2 class="fw-900 uppercase m-0">GLOBAL TRIBE</h2>
+                    <h2 class="fw-900 uppercase m-0">YOUR GLOBAL TRIBE</h2>
                     <div class="small fw-900 uppercase ls-2 text-success">Active Roster 🔒</div>
                 </div>
                 <div class="text-md-end">
-                    <a href="{{ url_for('global_draft_page') }}" class="btn btn-outline-secondary btn-sm fw-900 x-small mb-2">EDIT PICKS</a>
+                    <a href="{{ url_for('global_draft_page') }}" class="btn btn-outline-warning btn-sm fw-900 x-small mb-2" onclick="return confirm('Note: Once the premiere starts, changes will be locked. Edit picks now?')">EDIT SQUAD</a>
                 </div>
             </div>
 
+            {% set data = get_roster_data(roster) %}
             <div class="tribe-stack mb-4">
-                {% set data = get_roster_data(roster) %}
                 {% for cap, mult, label, color in [
                     (data.cap1, 2.0, 'Gold Captain', 'var(--accent)'),
                     (data.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (data.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
+                {% if cap %}
                 <div class="pro-card mb-3 p-2 border-start" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
                     <div class="d-flex align-items-center">
                         <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
                         <div class="flex-grow-1 ms-3">
                             <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
                             <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
+                            <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points|round(1) }} Base Pts</div>
+                        </div>
+                        <div class="text-end pe-2">
+                            <div class="x-small fw-900 text-white-50">TOTAL</div>
+                            <div class="fw-900 fs-4 text-white">{{ (cap.points * mult)|round(1) }}</div>
                         </div>
                     </div>
                 </div>
+                {% endif %}
                 {% endfor %}
             </div>
 
@@ -70,6 +85,7 @@
                         <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
                         <div class="p-2 text-center bg-black">
                             <div class="fw-900 uppercase text-truncate" style="font-size: 0.7rem;">{{ p.name }}</div>
+                            <div class="text-accent fw-900" style="font-size: 0.65rem;">{{ p.points|round(1) }} PTS</div>
                         </div>
                     </div>
                 </div>
@@ -80,7 +96,7 @@
             <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
                     <h2 class="fw-900 uppercase text-accent m-0 ls-1">Global Draft</h2>
-                    <p class="text-white-50 x-small">Choose your 3 Captains and 5 Regular Squad Members.</p>
+                    <p class="text-white-50 x-small">Select 3 Captains and exactly 5 Squad Members.</p>
                 </div>
 
                 <div class="mb-4">
@@ -103,7 +119,7 @@
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="fw-900 uppercase ls-2 text-white-50 m-0 small">The Squad (Select 5)</h6>
+                        <h6 class="fw-900 uppercase ls-2 text-white-50 m-0 small">Squad Members (Select 5)</h6>
                         <span id="counter" class="badge bg-secondary fw-900">0 / 5</span>
                     </div>
 
@@ -148,7 +164,6 @@
 </div>
 
 <style>
-    /* Professional Styles Reused from Dashboard */
     .btn-info-pop {
         position: absolute; top: 5px; right: 5px; z-index: 50;
         background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.3);
@@ -182,7 +197,6 @@
         });
     });
 
-    // Updated for 5 regulars
     const checks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
     const counter = document.getElementById('counter');

@@ -254,14 +254,26 @@ def join_global():
         flash("Joined Global Tournament! Set your Tribe.")
     return redirect(url_for('global_draft_page'))
 
+
 @app.route('/global/draft')
 def global_draft_page():
     if 'user_id' not in session: return redirect(url_for('login'))
+
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if not r:
         r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r); db.session.commit()
-    return render_template('global_draft.html', available=Survivor.query.filter_by(is_out=False).all(), roster=r)
+        db.session.add(r)
+        db.session.commit()
+
+    available = Survivor.query.filter_by(is_out=False).all()
+
+    # We MUST pass config and get_roster_data for the template to work
+    return render_template('global_draft.html',
+                           available=available,
+                           roster=r,
+                           config=POINTS_CONFIG,
+                           get_roster_data=get_roster_data)
+
 
 @app.route('/global/save_draft', methods=['POST'])
 def save_global_draft():
