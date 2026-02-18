@@ -3,32 +3,38 @@
 <div class="row justify-content-center mt-5">
     <div class="col-md-5">
         <div class="card p-4 shadow-lg" style="background-color: #000; border: 4px solid #FFD700;">
-            <h2 class="text-yellow fw-bold mb-4" style="text-transform: uppercase; letter-spacing: 2px;">Member Login</h2>
-            
+            <h2 class="text-yellow fw-bold mb-4" style="text-transform: uppercase; letter-spacing: 2px; color: #FFD700;">Member Login</h2>
+
             <form method="POST">
                 <div class="mb-3">
                     <label class="text-white fw-bold mb-2">EMAIL ADDRESS</label>
-                    <input type="email" name="email" class="form-control form-control-lg" 
-                           style="background: #000; color: #FFF; border: 3px solid #FFF; border-radius: 0;" 
+                    <input type="email" name="email" class="form-control form-control-lg"
+                           style="background: #000; color: #FFF; border: 3px solid #FFF; border-radius: 0;"
                            placeholder="your@email.com" required>
                 </div>
-                
-                <div class="mb-4">
+
+                <div class="mb-3">
                     <label class="text-white fw-bold mb-2">PASSWORD</label>
-                    <input type="password" name="password" class="form-control form-control-lg" 
-                           style="background: #000; color: #FFF; border: 3px solid #FFF; border-radius: 0;" 
+                    <input type="password" name="password" class="form-control form-control-lg"
+                           style="background: #000; color: #FFF; border: 3px solid #FFF; border-radius: 0;"
                            placeholder="*******" required>
                 </div>
-                
-                <button type="submit" class="btn btn-warning w-100 fw-bold py-3 fs-4" 
-                        style="background-color: #FFD700; color: #000; border: none;">
+
+                <div class="mb-4 text-end">
+                    <a href="{{ url_for('forgot_password') }}" class="fw-bold" style="color: #FFD700; text-decoration: none; font-size: 0.9rem;">
+                        FORGOT PASSWORD?
+                    </a>
+                </div>
+
+                <button type="submit" class="btn btn-warning w-100 fw-bold py-3 fs-4"
+                        style="background-color: #FFD700; color: #000; border: none; border-radius: 0;">
                     LOG IN
                 </button>
             </form>
-            
+
             <div class="mt-4 text-center">
                 <p class="text-white mb-0">Don't have an account?</p>
-                <a href="/signup" class="text-orange fw-bold fs-5" style="text-decoration: none;">CREATE ACCOUNT HERE</a>
+                <a href="/signup" class="fw-bold fs-5" style="color: #FFA500; text-decoration: none;">CREATE ACCOUNT HERE</a>
             </div>
         </div>
     </div>
