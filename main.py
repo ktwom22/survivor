@@ -317,5 +317,21 @@ def nuke_and_pave():
     db.create_all()
     return "Database reset! All columns (including settings_json) are now present."
 
+
+@app.route('/player/<int:player_id>')
+def player_profile(player_id):
+    p_obj = db.session.get(Survivor, player_id)
+    if not p_obj:
+        return redirect(url_for('home'))
+
+    totals = {
+        'surv': sum(1 for s in p_obj.stats if s.survived),
+        'imm': sum(1 for s in p_obj.stats if s.immunity),
+        'adv': sum(1 for s in p_obj.stats if s.advantage),
+        'cry': sum(1 for s in p_obj.stats if s.crying),
+        'score': p_obj.points
+    }
+    return render_template('player_profile.html', p=p_obj, totals=totals)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
