@@ -12,6 +12,7 @@ db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
+# Using v7 to ensure the settings_json column is recognized
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v7.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -40,7 +41,7 @@ class Survivor(db.Model):
     image_url = db.Column(db.String(500))
     season = db.Column(db.String(100))
     details = db.Column(db.Text)
-    points = db.Column(db.Float, default=0.0)
+    points = db.Column(db.Float, default=0.0)  # Global/Base points
     is_out = db.Column(db.Boolean, default=False)
     stats = db.relationship('WeeklyStat', backref='player', lazy=True)
 
@@ -105,15 +106,19 @@ def sync_players():
         r.encoding = 'utf-8'
         reader = csv.DictReader(StringIO(r.text))
         for row in reader:
-            name, img, seas, desc = row.get('Name', '').strip(), row.get('Image Link', '').strip(), row.get(
-                'What Season?', '').strip(), row.get('Details', '').strip()
+            name = row.get('Name', '').strip()
+            img = row.get('Image Link', '').strip()
+            seas = row.get('What Season?', '').strip()
+            desc = row.get('Details', '').strip()
             if not name: continue
+
             p = Survivor.query.filter_by(name=name).first()
             if not p:
                 db.session.add(Survivor(name=name, image_url=img, season=seas, details=desc))
             else:
                 p.image_url, p.season, p.details = img, seas, desc
         db.session.commit()
+        print("Players Synced!")
     except Exception as e:
         print(f"Sync error: {e}")
 
@@ -159,7 +164,8 @@ def signup():
             session['user_id'], session['username'] = new_u.id, new_u.username
             return redirect(url_for('home'))
         except:
-            db.session.rollback(); flash("Username/Email exists.")
+            db.session.rollback();
+            flash("Username/Email exists.")
     return render_template('signup.html')
 
 
@@ -274,6 +280,7 @@ def admin_scoring():
     if request.method == 'POST':
         if 'sync_all' in request.form:
             sync_players()
+            flash("Players Synced from Sheet!")
         else:
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
@@ -288,6 +295,9 @@ def admin_scoring():
                                   crying=request.form.get(f'cry_{s.id}') == 'on',
                                   penalty=request.form.get(f'pnl_{s.id}') == 'on',
                                   quit=request.form.get(f'quit_{s.id}') == 'on')
+
+                # Update the GLOBAL survivor points for the profile page
+                s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
             db.session.commit();
             flash(f"Week {wn} saved!")
@@ -295,43 +305,27 @@ def admin_scoring():
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
 
 
+@app.route('/player/<int:player_id>')
 def player_profile(player_id):
     p_obj = db.session.get(Survivor, player_id)
-    if not p_obj:
-        return redirect(url_for('home'))
-
-    # This ensures the profile still shows points correctly
-    # even with custom league scoring active elsewhere
+    if not p_obj: return redirect(url_for('home'))
     totals = {
         'surv': sum(1 for s in p_obj.stats if s.survived),
         'imm': sum(1 for s in p_obj.stats if s.immunity),
         'adv': sum(1 for s in p_obj.stats if s.advantage),
         'cry': sum(1 for s in p_obj.stats if s.crying),
-        'score': p_obj.points  # Global base points
+        'score': round(p_obj.points, 1)
     }
     return render_template('player_profile.html', p=p_obj, totals=totals)
+
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
     db.drop_all()
     db.create_all()
-    return "Database reset! All columns (including settings_json) are now present."
+    sync_players()
+    return "Database reset and Players Re-Synced! <a href='/'>Go Home</a>"
 
-
-@app.route('/player/<int:player_id>')
-def player_profile(player_id):
-    p_obj = db.session.get(Survivor, player_id)
-    if not p_obj:
-        return redirect(url_for('home'))
-
-    totals = {
-        'surv': sum(1 for s in p_obj.stats if s.survived),
-        'imm': sum(1 for s in p_obj.stats if s.immunity),
-        'adv': sum(1 for s in p_obj.stats if s.advantage),
-        'cry': sum(1 for s in p_obj.stats if s.crying),
-        'score': p_obj.points
-    }
-    return render_template('player_profile.html', p=p_obj, totals=totals)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
