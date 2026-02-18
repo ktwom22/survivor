@@ -7,6 +7,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
 
+# --- AUTH & EMAIL CONFIG ---
+# This line "reads" the key from the dashboard settings above
+resend.api_key = os.getenv("RESEND_API_KEY")
+
+# IMPORTANT: If you haven't verified a domain on Resend,
+# you MUST use this specific email address as the sender:
+SENDER_EMAIL = "onboarding@resend.dev"
+
 # --- DATABASE CONFIG ---
 db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
