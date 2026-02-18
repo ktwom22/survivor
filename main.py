@@ -318,24 +318,37 @@ def join_global():
     return redirect(url_for('home'))
 
 
+@app.route('/nuke_and_pave')
+def nuke_and_pave():
+    # This deletes everything and recreates the tables with the new columns
+    db.drop_all()
+    db.create_all()
+    sync_players()
+    return "Database wiped and recreated with new columns! <a href='/'>Go Home</a>"
+
+
 @app.route('/global/draft')
 def global_draft_page():
     if 'user_id' not in session: return redirect(url_for('login'))
 
-    # Find the global roster for this user
+    # Get the user's global roster
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if not r:
-        flash("Join the Global Tournament first!")
-        return redirect(url_for('home'))
+        # If they haven't "Joined" yet, join them automatically
+        r = Roster(user_id=session['user_id'], is_global=True)
+        db.session.add(r)
+        db.session.commit()
 
     available = Survivor.query.filter_by(is_out=False).all()
-    # We use a specific 'global_draft' template or reuse the dashboard draft UI
     return render_template('global_draft.html', available=available, roster=r)
 
 
 @app.route('/global/save_draft', methods=['POST'])
 def save_global_draft():
     if 'user_id' not in session: return redirect(url_for('login'))
+
+    # Your preference: once the game starts, we stop allowing updates
+    # if game_has_started(): return "Draft is locked!"
 
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if r:
@@ -344,9 +357,9 @@ def save_global_draft():
         r.cap3_id = int(request.form.get('cap3'))
         r.regular_ids = ",".join(request.form.getlist('regs'))
         db.session.commit()
-        flash("Global Tribe Locked In! 🔒")
+        flash("Global Tribe Saved! You are now on the leaderboard.")
 
-    return redirect(url_for('global_leaderboard'))
+    return redirect(url_for('home'))
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
