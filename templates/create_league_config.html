@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="pro-card border-accent p-4 shadow-lg mx-auto" style="max-width: 800px;">
+    <div class="text-center mb-4">
+        <h2 class="fw-900 uppercase text-accent m-0">League Scoring Setup</h2>
+        <p class="text-white-50 small">Customize how points are earned in <strong>{{ league_name }}</strong></p>
+    </div>
+
+    <form action="{{ url_for('finalize_league') }}" method="POST">
+        <input type="hidden" name="league_name" value="{{ league_name }}">
+        
+        <div class="row g-3">
+            {% for key, val in default_points.items() %}
+            <div class="col-md-6">
+                <div class="p-3 border border-secondary rounded bg-black d-flex justify-content-between align-items-center">
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input custom-switch" type="checkbox" name="active_{{ key }}" id="check_{{ key }}" checked>
+                        <label class="small fw-900 uppercase text-white ms-2" for="check_{{ key }}">
+                            {{ key|replace('_', ' ') }}
+                        </label>
+                    </div>
+                    <input type="number" step="0.5" name="val_{{ key }}" 
+                           class="form-control form-control-sm bg-dark text-white border-secondary w-25 text-center fw-bold" 
+                           value="{{ val }}">
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="mt-5 border-top border-secondary pt-4">
+            <button type="submit" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2">
+                Launch League & Invite Friends 🚀
+            </button>
+            <p class="text-center text-white-50 x-small mt-3">These rules will be pinned to your league dashboard forever.</p>
+        </div>
+    </form>
+</div>
+
+<style>
+    .custom-switch:checked { background-color: var(--accent); border-color: var(--accent); }
+    .form-control:focus { border-color: var(--accent); box-shadow: none; }
+</style>
+{% endblock %}

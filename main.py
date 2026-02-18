@@ -295,7 +295,6 @@ def admin_scoring():
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
 
 
-@app.route('/player/<int:player_id>')
 def player_profile(player_id):
     p_obj = db.session.get(Survivor, player_id)
     if not p_obj:
@@ -311,6 +310,12 @@ def player_profile(player_id):
         'score': p_obj.points  # Global base points
     }
     return render_template('player_profile.html', p=p_obj, totals=totals)
+
+@app.route('/nuke_and_pave')
+def nuke_and_pave():
+    db.drop_all()
+    db.create_all()
+    return "Database reset! All columns (including settings_json) are now present."
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
