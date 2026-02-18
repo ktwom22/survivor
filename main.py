@@ -306,12 +306,13 @@ def draft(code):
 
 # --- GLOBAL STANDINGS & DRAFT ---
 
-@app.route('/global-leaderboard')
-def global_leaderboard():
+# Updated to match your template name and intended link structure
+@app.route('/global-standings')
+def global_standings():
     global_rosters = Roster.query.filter_by(is_global=True).all()
+    # Sorts the tribe owners by their calculated score
     lb = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner], key=lambda x: x['score'], reverse=True)
     return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb))
-
 @app.route('/global/draft')
 def global_draft_page():
     if 'user_id' not in session: return redirect(url_for('login'))
