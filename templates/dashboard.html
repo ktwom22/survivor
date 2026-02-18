@@ -31,10 +31,9 @@
                 </div>
                 <div class="text-md-end">
                     <div class="small fw-900 text-white-50 uppercase" style="font-size: 0.6rem;">Total Tribe Score</div>
-                    {% set ns = namespace(total=0) %}
-                    {% set ns.total = (my_tribe.cap1.points*2) + (my_tribe.cap2.points*1.5) + (my_tribe.cap3.points*1.25) %}
-                    {% for p in my_tribe.regs %}{% set ns.total = ns.total + p.points %}{% endfor %}
-                    <h1 class="fw-900 m-0 display-4 text-accent lh-1">{{ ns.total|round(1) }}</h1>
+                    <h1 class="fw-900 m-0 display-4 text-accent lh-1">
+                        {{ ((my_tribe.cap1.points*2) + (my_tribe.cap2.points*1.5) + (my_tribe.cap3.points*1.25) + (my_tribe.regs|sum(attribute='points')))|round(1) }}
+                    </h1>
                 </div>
             </div>
 
@@ -91,10 +90,12 @@
                     <div class="row g-2 mb-4">
                         {% for cap_key, label, color in [('cap1', 'Gold (2x)', 'var(--accent)'), ('cap2', 'Silver (1.5x)', '#fff'), ('cap3', 'Bronze (1.25x)', '#64748b')] %}
                         <div class="col-12 col-md-4">
-                            <label class="x-small fw-900 uppercase mb-1" style="color: {{ color }}">{{ label }}</label>
+                            <label class="x-small fw-900 uppercase mb-1" style="color: {{ color }}">{{ label }} Captain</label>
                             <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small" required>
                                 <option value="">Select...</option>
-                                {% for p in available|sort(attribute='name') %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                                {% for p in available|sort(attribute='name') %}
+                                <option value="{{ p.id }}">{{ p.name }} (S{{ p.season }})</option>
+                                {% endfor %}
                             </select>
                         </div>
                         {% endfor %}
@@ -105,14 +106,14 @@
                         <span id="counter" class="badge bg-secondary fw-900">0 / 3</span>
                     </div>
 
-                    <div class="row g-2 mb-4 overflow-auto" style="max-height: 450px;" id="playerGallery">
+                    <div class="row g-2 mb-4 overflow-auto" style="max-height: 450px; scrollbar-width: thin;" id="playerGallery">
                         {% for p in available|sort(attribute='name') %}
                         <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}">
-                            <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                             <div class="position-relative">
                                 <button type="button" class="btn-info-pop"
-                                        onclick="showQuickLook('{{ p.name }}', '{{ p.image_url }}', '{{ p.season }}', '{{ p.details|replace("'", "\\'") }}')">ⓘ</button>
+                                        onclick="showQuickLook(event, '{{ p.name }}', '{{ p.image_url }}', '{{ p.season }}', '{{ p.details|replace("'", "\\'") }}')">ⓘ</button>
 
+                                <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
                                     <img src="{{ p.image_url }}" class="w-100" style="aspect-ratio: 1/1; object-fit: cover; object-position: top;">
                                     <div class="name-overlay">{{ p.name.split(' ')[0] }}</div>
@@ -131,11 +132,11 @@
 
 <div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-black border-accent text-white">
+        <div class="modal-content bg-black border-accent text-white shadow-lg">
             <div class="modal-body p-0 position-relative">
                 <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
-                <img id="modalImg" src="" class="w-100 shadow" style="height: 300px; object-fit: cover; object-position: top;">
-                <div class="p-4">
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top;">
+                <div class="p-4 bg-gradient-dark">
                     <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1 small"></h6>
                     <h2 id="modalName" class="fw-900 uppercase mb-3"></h2>
                     <p id="modalDetails" class="text-white-50 small lh-lg"></p>
@@ -146,29 +147,46 @@
 </div>
 
 <style>
-    /* Info Button Over Image */
+    /* Info Button Styles */
     .btn-info-pop {
-        position: absolute; top: 5px; right: 5px; z-index: 10;
-        background: rgba(0,0,0,0.7); color: white; border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 50%; width: 22px; height: 22px; font-size: 11px;
+        position: absolute; top: 4px; right: 4px; z-index: 20;
+        background: rgba(0,0,0,0.8); color: white; border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 50%; width: 24px; height: 24px; font-size: 12px;
         display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+        transition: 0.2s; cursor: pointer;
     }
-    .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); }
+    .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
 
-    /* Selection Styles */
-    .player-card-label { border-radius: 6px; overflow: hidden; transition: transform 0.1s; }
-    .btn-check:checked + .player-card-label { border-color: var(--accent) !important; transform: scale(0.96); }
+    /* Selection Styles (INDICATORS) */
+    .player-card-label {
+        border-radius: 6px; overflow: hidden; transition: all 0.2s;
+        border-color: rgba(255,255,255,0.1) !important;
+    }
+    .player-card-label:hover { border-color: rgba(255,255,255,0.4) !important; }
+
+    /* THIS IS THE SELECTED INDICATOR */
+    .btn-check:checked + .player-card-label {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.4);
+        transform: scale(0.94);
+    }
+
     .name-overlay {
-        position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8);
-        color: white; font-size: 0.6rem; font-weight: 900; text-transform: uppercase; padding: 2px 0; text-align: center;
+        position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.85);
+        color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 4px 0; text-align: center;
+        transition: 0.2s;
     }
-    .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
+    .btn-check:checked + .player-card-label .name-overlay {
+        background: var(--accent);
+        color: black;
+    }
 
+    .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
     .hidden { display: none; }
 </style>
 
 <script>
-    // Search Filter Logic
+    // Search Functionality
     document.getElementById('playerSearch')?.addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
         document.querySelectorAll('.player-item').forEach(item => {
@@ -176,34 +194,50 @@
         });
     });
 
-    // Selection Logic
+    // Drafting Selection Logic
     const checks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
     const counter = document.getElementById('counter');
 
     checks.forEach(check => {
         check.addEventListener('change', () => {
-            const count = document.querySelectorAll('.reg-cb:checked').length;
+            const selected = document.querySelectorAll('.reg-cb:checked');
+            const count = selected.length;
+
             if(counter) counter.innerText = `${count} / 3`;
+
             if (count === 3) {
-                btn.disabled = false; btn.classList.replace('btn-secondary', 'btn-accent'); btn.classList.remove('opacity-50');
+                btn.disabled = false;
+                btn.classList.replace('btn-secondary', 'btn-accent');
+                btn.classList.remove('opacity-50');
                 btn.innerText = "LOCK IN TRIBE 🔒";
+                // Disable unchecked ones
                 checks.forEach(c => { if(!c.checked) c.disabled = true; });
             } else {
-                btn.disabled = true; btn.classList.replace('btn-accent', 'btn-secondary'); btn.classList.add('opacity-50');
-                btn.innerText = `SELECT ${3 - count} MORE`;
+                btn.disabled = true;
+                btn.classList.replace('btn-accent', 'btn-secondary');
+                btn.classList.add('opacity-50');
+                btn.innerText = count < 3 ? `SELECT ${3 - count} MORE` : "REDUCE SELECTION";
                 checks.forEach(c => c.disabled = false);
             }
         });
     });
 
-    // Bio Quick Look Logic
-    function showQuickLook(name, img, season, details) {
+    // Quick Look Logic (WITH event fix)
+    function showQuickLook(event, name, img, season, details) {
+        // IMPORTANT: This stops the checkbox from toggling when the I is clicked
+        if(event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         document.getElementById('modalName').innerText = name;
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
-        new bootstrap.Modal(document.getElementById('quickLookModal')).show();
+
+        const myModal = new bootstrap.Modal(document.getElementById('quickLookModal'));
+        myModal.show();
     }
 </script>
 
