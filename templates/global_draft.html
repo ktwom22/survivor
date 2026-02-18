@@ -1,21 +1,211 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="pro-card border-accent p-4 shadow-lg">
-    <div class="mb-4 text-center">
-        <h2 class="fw-900 uppercase text-accent m-0 ls-1">Global Contest: Select Your Tribe</h2>
-        <p class="text-white-50 small">This tribe competes against everyone in the world.</p>
+
+<div class="row g-4">
+    <div class="col-md-3 order-2 order-md-1">
+        <div class="pro-card border-secondary shadow-sm mb-4">
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">Global Leaders</h6>
+            <div class="list-group list-group-flush bg-black">
+                <div class="list-group-item bg-black border-secondary px-0 py-2">
+                    <span class="small text-accent fw-900 uppercase">Tournament Active</span>
+                    <div class="x-small text-white-50">Draft your tribe to appear here.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pro-card border-accent bg-black shadow-sm">
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Global Scoring</h6>
+            <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
+                {% for key, val in config.items() %}
+                    {% if val != 0 %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+                        <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
+                        <span class="small fw-900 text-white">{% if val > 0 %}+{% endif %}{{ val }}</span>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <p class="x-small text-white-50 mt-3 mb-0" style="font-size: 0.55rem; font-style: italic;">
+                * Multipliers: Gold (2x), Silver (1.5x), Bronze (1.25x).
+            </p>
+        </div>
     </div>
 
-    <form action="{{ url_for('save_global_draft') }}" method="POST" id="draftForm">
-        <div class="row g-2 mb-4">
-            </div>
-        
-        <div class="row g-2 mb-4" id="playerGallery">
+    <div class="col-md-9 order-1 order-md-2">
+        {% if roster and roster.cap1_id %}
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 border-bottom border-secondary pb-3 gap-2">
+                <div>
+                    <h2 class="fw-900 uppercase m-0">GLOBAL TRIBE</h2>
+                    <div class="small fw-900 uppercase ls-2 text-success">Active Roster 🔒</div>
+                </div>
+                <div class="text-md-end">
+                    <a href="{{ url_for('global_draft_page') }}" class="btn btn-outline-secondary btn-sm fw-900 x-small mb-2">EDIT PICKS</a>
+                </div>
             </div>
 
-        <button type="submit" id="submitBtn" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2">
-            LOCK IN GLOBAL TRIBE 🔒
-        </button>
-    </form>
+            <div class="tribe-stack mb-4">
+                {% set data = get_roster_data(roster) %}
+                {% for cap, mult, label, color in [
+                    (data.cap1, 2.0, 'Gold Captain', 'var(--accent)'),
+                    (data.cap2, 1.5, 'Silver Captain', '#ffffff'),
+                    (data.cap3, 1.25, 'Bronze Captain', '#64748b')
+                ] %}
+                <div class="pro-card mb-3 p-2 border-start" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
+                            <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">Regulars (1.0x)</h6>
+            <div class="row g-2">
+                {% for p in data.regs %}
+                <div class="col-6 col-md-4">
+                    <div class="pro-card border-secondary p-0 overflow-hidden h-100">
+                        <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
+                        <div class="p-2 text-center bg-black">
+                            <div class="fw-900 uppercase text-truncate" style="font-size: 0.7rem;">{{ p.name }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+        {% else %}
+            <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
+                <div class="mb-4 text-center">
+                    <h2 class="fw-900 uppercase text-accent m-0 ls-1">Global Draft</h2>
+                    <p class="text-white-50 x-small">Choose your 3 Captains and 5 Regular Squad Members.</p>
+                </div>
+
+                <div class="mb-4">
+                    <input type="text" id="playerSearch" class="form-control bg-black text-white border-secondary py-2" placeholder="Search Survivor Name...">
+                </div>
+
+                <form action="{{ url_for('save_global_draft') }}" method="POST" id="draftForm">
+                    <div class="row g-2 mb-4">
+                        {% for cap_key, label, color in [('cap1', 'Gold (2x)', 'var(--accent)'), ('cap2', 'Silver (1.5x)', '#fff'), ('cap3', 'Bronze (1.25x)', '#64748b')] %}
+                        <div class="col-12 col-md-4">
+                            <label class="x-small fw-900 uppercase mb-1" style="color: {{ color }}">{{ label }} Captain</label>
+                            <select name="{{ cap_key }}" class="form-select bg-black text-white border-secondary small" required>
+                                <option value="">Select...</option>
+                                {% for p in available|sort(attribute='name') %}
+                                <option value="{{ p.id }}">{{ p.name }} (S{{ p.season }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-900 uppercase ls-2 text-white-50 m-0 small">The Squad (Select 5)</h6>
+                        <span id="counter" class="badge bg-secondary fw-900">0 / 5</span>
+                    </div>
+
+                    <div class="row g-2 mb-4 overflow-auto" style="max-height: 450px; scrollbar-width: thin;" id="playerGallery">
+                        {% for p in available|sort(attribute='name') %}
+                        <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}">
+                            <div class="position-relative h-100">
+                                <button type="button" class="btn-info-pop"
+                                        onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
+
+                                <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
+                                <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
+                                    <img src="{{ p.image_url }}" class="w-100" style="aspect-ratio: 1/1; object-fit: cover; object-position: top;">
+                                    <div class="name-overlay">{{ p.name.split(' ')[0] }}</div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 5 Regulars</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
 </div>
+
+<div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-accent text-white shadow-lg">
+            <div class="modal-body p-0 position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top;">
+                <div class="p-4 bg-gradient-dark">
+                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1 small"></h6>
+                    <h2 id="modalName" class="fw-900 uppercase mb-3"></h2>
+                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Professional Styles Reused from Dashboard */
+    .btn-info-pop {
+        position: absolute; top: 5px; right: 5px; z-index: 50;
+        background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 50%; width: 26px; height: 26px; font-size: 13px;
+        display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+        transition: 0.2s; cursor: pointer;
+    }
+    .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
+    .player-card-label { border-radius: 6px; overflow: hidden; transition: 0.2s; border-color: rgba(255,255,255,0.1) !important; cursor: pointer; }
+    .btn-check:checked + .player-card-label { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); transform: scale(0.96); }
+    .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
+    .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
+    .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
+    .hidden { display: none; }
+</style>
+
+<script>
+    function showQuickLook(event, name, img, season, details) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        document.getElementById('modalName').innerText = name;
+        document.getElementById('modalImg').src = img;
+        document.getElementById('modalSeason').innerText = "Season: " + season;
+        document.getElementById('modalDetails').innerText = details;
+        new bootstrap.Modal(document.getElementById('quickLookModal')).show();
+    }
+
+    document.getElementById('playerSearch')?.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.player-item').forEach(item => {
+            item.classList.toggle('hidden', !item.getAttribute('data-name').includes(term));
+        });
+    });
+
+    // Updated for 5 regulars
+    const checks = document.querySelectorAll('.reg-cb');
+    const btn = document.getElementById('submitBtn');
+    const counter = document.getElementById('counter');
+
+    checks.forEach(check => {
+        check.addEventListener('change', () => {
+            const count = document.querySelectorAll('.reg-cb:checked').length;
+            if(counter) counter.innerText = `${count} / 5`;
+
+            if (count === 5) {
+                btn.disabled = false;
+                btn.classList.replace('btn-secondary', 'btn-accent');
+                btn.classList.remove('opacity-50');
+                btn.innerText = "CONFIRM GLOBAL TRIBE 🔒";
+                checks.forEach(c => { if(!c.checked) c.disabled = true; });
+            } else {
+                btn.disabled = true;
+                btn.classList.replace('btn-accent', 'btn-secondary');
+                btn.classList.add('opacity-50');
+                btn.innerText = count < 5 ? `SELECT ${5 - count} MORE` : "REDUCE SELECTION";
+                checks.forEach(c => c.disabled = false);
+            }
+        });
+    });
+</script>
 {% endblock %}
