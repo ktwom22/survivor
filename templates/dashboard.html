@@ -3,7 +3,7 @@
 
 <div class="row g-4">
     <div class="col-md-3 order-2 order-md-1">
-        <div class="pro-card border-secondary shadow-sm">
+        <div class="pro-card border-secondary shadow-sm mb-4">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">League Standings</h6>
             <div class="list-group list-group-flush bg-black">
                 {% for e in leaderboard %}
@@ -19,6 +19,23 @@
                 </a>
                 {% endfor %}
             </div>
+        </div>
+
+        <div class="pro-card border-accent bg-black shadow-sm">
+            <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Scoring Rules</h6>
+            <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
+                {% for key, val in league_pts.items() %}
+                    {% if val != 0 %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+                        <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
+                        <span class="small fw-900 text-white">{% if val > 0 %}+{% endif %}{{ val }}</span>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <p class="x-small text-white-50 mt-3 mb-0" style="font-size: 0.55rem; font-style: italic;">
+                * Multipliers apply to Captains (2x, 1.5x, 1.25x).
+            </p>
         </div>
     </div>
 
@@ -79,7 +96,7 @@
             <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
                     <h2 class="fw-900 uppercase text-accent m-0 ls-1">Assembling Your Tribe</h2>
-                    <p class="text-white-50 x-small">Click card to select. Click <span class="text-info">ⓘ</span> for details.</p>
+                    <p class="text-white-50 x-small">Select 3 Captains and 3 Regulars to begin.</p>
                 </div>
 
                 <div class="mb-4">
@@ -147,46 +164,56 @@
 </div>
 
 <style>
-    /* Info Button Styles */
+    /* Info Button Over Image */
     .btn-info-pop {
-        position: absolute; top: 4px; right: 4px; z-index: 20;
-        background: rgba(0,0,0,0.8); color: white; border: 1px solid rgba(255,255,255,0.3);
+        position: absolute; top: 4px; right: 4px; z-index: 30;
+        background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.4);
         border-radius: 50%; width: 24px; height: 24px; font-size: 12px;
         display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
         transition: 0.2s; cursor: pointer;
     }
     .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
 
-    /* Selection Styles (INDICATORS) */
-    .player-card-label {
-        border-radius: 6px; overflow: hidden; transition: all 0.2s;
-        border-color: rgba(255,255,255,0.1) !important;
-    }
-    .player-card-label:hover { border-color: rgba(255,255,255,0.4) !important; }
-
-    /* THIS IS THE SELECTED INDICATOR */
+    /* Selection Highlighting */
+    .player-card-label { border-radius: 6px; overflow: hidden; transition: all 0.2s; border-color: rgba(255,255,255,0.1) !important; }
     .btn-check:checked + .player-card-label {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 15px rgba(255, 193, 7, 0.4);
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
         transform: scale(0.94);
     }
 
     .name-overlay {
         position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.85);
         color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 4px 0; text-align: center;
-        transition: 0.2s;
     }
-    .btn-check:checked + .player-card-label .name-overlay {
-        background: var(--accent);
-        color: black;
-    }
+    .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
 
     .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
     .hidden { display: none; }
+    .rules-list::-webkit-scrollbar { width: 4px; }
+    .rules-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
 </style>
 
 <script>
-    // Search Functionality
+    // Robust Modal Populating Logic
+    function showQuickLook(event, name, img, season, details) {
+        if(event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        const modal = document.getElementById('quickLookModal');
+        document.getElementById('modalName').innerText = name;
+        document.getElementById('modalImg').src = img;
+        document.getElementById('modalSeason').innerText = "Season: " + season;
+        document.getElementById('modalDetails').innerText = details;
+
+        // Use Bootstrap native constructor
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+        bsModal.show();
+    }
+
+    // Search Filter
     document.getElementById('playerSearch')?.addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
         document.querySelectorAll('.player-item').forEach(item => {
@@ -194,16 +221,14 @@
         });
     });
 
-    // Drafting Selection Logic
+    // Roster Counter & Lock-in
     const checks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
     const counter = document.getElementById('counter');
 
     checks.forEach(check => {
         check.addEventListener('change', () => {
-            const selected = document.querySelectorAll('.reg-cb:checked');
-            const count = selected.length;
-
+            const count = document.querySelectorAll('.reg-cb:checked').length;
             if(counter) counter.innerText = `${count} / 3`;
 
             if (count === 3) {
@@ -211,7 +236,6 @@
                 btn.classList.replace('btn-secondary', 'btn-accent');
                 btn.classList.remove('opacity-50');
                 btn.innerText = "LOCK IN TRIBE 🔒";
-                // Disable unchecked ones
                 checks.forEach(c => { if(!c.checked) c.disabled = true; });
             } else {
                 btn.disabled = true;
@@ -222,23 +246,6 @@
             }
         });
     });
-
-    // Quick Look Logic (WITH event fix)
-    function showQuickLook(event, name, img, season, details) {
-        // IMPORTANT: This stops the checkbox from toggling when the I is clicked
-        if(event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-
-        document.getElementById('modalName').innerText = name;
-        document.getElementById('modalImg').src = img;
-        document.getElementById('modalSeason').innerText = "Season: " + season;
-        document.getElementById('modalDetails').innerText = details;
-
-        const myModal = new bootstrap.Modal(document.getElementById('quickLookModal'));
-        myModal.show();
-    }
 </script>
 
 {% endblock %}
