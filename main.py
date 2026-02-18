@@ -296,6 +296,22 @@ def draft(code):
 
 # --- GLOBAL STANDINGS ---
 
+@app.route('/join-global', methods=['POST'])
+def join_global():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # Check if they already have a global roster
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+    if not r:
+        # Create an empty global roster so they are "in"
+        r = Roster(user_id=session['user_id'], is_global=True)
+        db.session.add(r)
+        db.session.commit()
+        flash("Welcome to the Global Season! Time to draft your tribe.", "success")
+
+    return redirect(url_for('global_draft_page'))
+
 # RENAMED TO SATISFY YOUR home.html LINK
 @app.route('/global-leaderboard')
 def global_leaderboard():
@@ -348,6 +364,8 @@ def admin_scoring():
             db.session.commit(); flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
+
+
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
