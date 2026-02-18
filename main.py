@@ -1,4 +1,4 @@
-import os, uuid, requests, csv, json
+import os, uuid, requests, csv, json, resend
 from io import StringIO
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
@@ -15,6 +15,11 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v7.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+# --- RESEND CONFIG ---
+resend.api_key = os.getenv("RESEND_API_KEY")
+# Use 'onboarding@resend.dev' for testing with your own email until your domain is verified
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
 
 # --- GLOBAL DEFAULTS ---
 POINTS_CONFIG = {
@@ -183,6 +188,37 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear(); return redirect(url_for('home'))
+
+# --- NEW: PASSWORD RECOVERY (RESEND) ---
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            try:
+                # In a real app, generate a specific token for resetting.
+                # This logic currently sends a confirmation with their username.
+                params = {
+                    "from": f"Survivor Pool <{SENDER_EMAIL}>",
+                    "to": [user.email],
+                    "subject": "Survivor Pool - Reset Your Password",
+                    "html": f"""
+                    <h2>Hi {user.username}!</h2>
+                    <p>We received a request to reset your password.</p>
+                    <p>Click the link below to go to the login page and try your login again, 
+                    or contact an admin to manually reset your hashed record.</p>
+                    <a href='{url_for('login', _external=True)}'>Go to Login</a>
+                    """
+                }
+                resend.Emails.send(params)
+                flash("Recovery email sent! Check your inbox.", "success")
+            except Exception as e:
+                flash(f"Email service error: {str(e)}", "danger")
+        else:
+            flash("If an account exists for that email, an update has been sent.", "info")
+        return redirect(url_for('login'))
+    return render_template('forgot_password.html')
 
 @app.route('/create_league', methods=['POST'])
 def create_league():
