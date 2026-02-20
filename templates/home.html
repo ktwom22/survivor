@@ -6,36 +6,38 @@
         <h1 class="display-3 fw-900 uppercase ls-2 mb-2" style="letter-spacing: 5px;">
             OUTWIT <span class="text-accent">OUTPLAY</span> OUTLAST
         </h1>
-        <p class="lead text-white-50 fw-bold uppercase ls-2 mb-5">Survivor 50 Fantasy League</p>
+        <p class="lead text-white fw-900 uppercase ls-2 mb-5">Survivor 50 Fantasy League</p>
 
-        <div class="pro-card border-accent bg-black mb-5 text-start shadow-lg" style="border-width: 2px !important;">
+        <div class="pro-card border-accent bg-black mb-5 text-start shadow-lg" style="border-width: 3px !important;">
             <div class="row align-items-center g-4 p-2">
                 <div class="col-lg-7">
                     <div class="d-flex align-items-center mb-3">
-                        <span class="badge bg-accent text-dark fw-900 me-3 px-3">GLOBAL EVENT</span>
-                        <h3 class="fw-900 uppercase m-0">World Series Leaderboard</h3>
+                        <span class="badge bg-accent text-dark fw-900 me-3 px-3 py-2 fs-6">GLOBAL EVENT</span>
+                        <h3 class="fw-900 uppercase m-0 text-white">World Series Leaderboard</h3>
                     </div>
-                    <p class="text-white-50 small mb-4">Anyone can enter. Unlimited entrants. Compete against the world with the standard scoring system.</p>
+                    <p class="text-white fw-bold small mb-4">Anyone can enter. Unlimited entrants. Compete against the world with the standard scoring system.</p>
 
-                    <div class="list-group list-group-flush border-top border-secondary">
+                    <div class="list-group list-group-flush border-top border-secondary" style="border-width: 2px !important;">
                         {% if global_top_5 %}
                             {% for player in global_top_5 %}
                             <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center px-0 py-2">
-                                <span class="small fw-900">
+                                <span class="small fw-900 text-white">
                                     <span class="text-accent me-2">#{{ loop.index }}</span>
                                     {{ player.user|upper }}
-                                    {% if player.user == session.username %}<span class="x-small text-white-50 ms-1">(YOU)</span>{% endif %}
+                                    {% if player.user == session.username %}
+                                        <span class="text-accent ms-2 fw-900">[YOU]</span>
+                                    {% endif %}
                                 </span>
-                                <span class="fw-900 text-white">{{ player.score|round(1) }}</span>
+                                <span class="fw-900 text-accent fs-5">{{ player.score|round(1) }}</span>
                             </div>
                             {% endfor %}
                         {% else %}
-                            <div class="py-3 text-white-50 small italic">Waiting for the first tribes to be drafted...</div>
+                            <div class="py-3 text-accent fw-900 small italic">Waiting for the first tribes to be drafted...</div>
                         {% endif %}
                     </div>
 
                     <div class="mt-4 d-flex gap-2 flex-column flex-sm-row">
-                        <a href="{{ url_for('global_leaderboard') }}" class="btn btn-outline-light fw-900 uppercase ls-1 px-4">
+                        <a href="{{ url_for('global_leaderboard') }}" class="btn btn-outline-light fw-900 uppercase ls-1 px-4 border-2">
                             Expand Standings ({{ total_global_entrants }})
                         </a>
 
@@ -44,64 +46,67 @@
                                 <button type="submit" class="btn btn-accent fw-900 uppercase ls-1 px-4 text-dark w-100">Enter Tournament</button>
                             </form>
                         {% else %}
-                            <a href="{{ url_for('global_draft_page') }}" class="btn btn-success fw-900 uppercase ls-1 px-4 shadow-glow">
+                            <a href="{{ url_for('global_draft_page') }}" class="btn btn-success fw-900 uppercase ls-1 px-4 shadow-glow text-white border-0">
                                 <i class="bi bi-person-plus-fill me-2"></i>Draft Global Tribe
                             </a>
                         {% endif %}
                     </div>
                 </div>
                 <div class="col-lg-5 d-none d-lg-block text-center">
-                    <div class="p-4 rounded border border-secondary bg-darker">
+                    <div class="p-4 rounded border-2 border-secondary bg-darker">
                         <div class="display-1 fw-900 text-accent mb-0">S50</div>
-                        <div class="fw-900 uppercase ls-2 text-white-50">Global Champion</div>
-                        <div class="mt-3 x-small text-white-50 italic">The ultimate Survivor bragging rights</div>
+                        <div class="fw-900 uppercase ls-2 text-white">Global Champion</div>
+                        <div class="mt-3 x-small text-accent fw-900 italic">THE ULTIMATE BRAGGING RIGHTS</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <hr class="border-secondary opacity-25 mb-5">
+        <hr class="border-secondary mb-5" style="opacity: 1 !important; border-width: 2px;">
 
         <div class="row g-4 text-start">
             <div class="col-md-6">
-                <div class="pro-card border-ocean h-100" style="border-top: 4px solid var(--ocean) !important;">
-                    <h4 class="fw-900 uppercase ls-1 mb-4">Private Leagues</h4>
+                <div class="pro-card border-ocean h-100 bg-black" style="border-top: 6px solid var(--ocean) !important;">
+                    <h4 class="fw-900 uppercase ls-1 mb-4 text-white">Private Leagues</h4>
                     {% if user_leagues %}
                         {% for l in user_leagues %}
-                        <div class="d-flex justify-content-between align-items-center p-3 border border-secondary mb-3 rounded hover-glow">
+                        <div class="d-flex justify-content-between align-items-center p-3 border-2 border-secondary mb-3 rounded hover-glow">
                             <div>
                                 <h5 class="fw-900 m-0 text-white">{{ l.name|upper }}</h5>
-                                <small class="text-white-50 uppercase fw-bold" style="font-size: 0.65rem;">Code: {{ l.invite_code }}</small>
+                                <small class="text-accent uppercase fw-900" style="font-size: 0.75rem;">CODE: {{ l.invite_code }}</small>
                             </div>
-                            <a href="{{ url_for('league_dashboard', code=l.invite_code) }}" class="btn btn-ocean btn-sm fw-900 px-4">DASHBOARD</a>
+                            <a href="{{ url_for('league_dashboard', code=l.invite_code) }}" class="btn btn-ocean btn-sm fw-900 px-4 text-white">DASHBOARD</a>
                         </div>
                         {% endfor %}
                     {% else %}
                         <div class="text-center py-4">
-                            <p class="text-white-50 small">Join a friend's league or start your own to play in a small group.</p>
+                            <p class="text-white fw-900 small">Join a friend's league or start your own to play in a small group.</p>
                         </div>
                     {% endif %}
                 </div>
             </div>
 
             <div class="col-md-6">
-                <div class="pro-card border-secondary h-100" style="border-top: 4px solid #fff !important;">
+                <div class="pro-card border-light h-100 bg-black" style="border-top: 6px solid #ffffff !important;">
                     <h4 class="fw-900 uppercase ls-1 mb-4 text-white">Join / Create</h4>
+
                     <form action="{{ url_for('join_league') }}" method="POST" class="mb-4">
-                        <label class="x-small fw-900 uppercase text-white-50 mb-1">Enter Invite Code</label>
+                        <label class="x-small fw-900 uppercase text-white mb-2 d-block">Enter Invite Code</label>
                         <div class="input-group">
-                            <input type="text" name="invite_code" class="form-control bg-black border-secondary text-white fw-900" placeholder="XXXXXX" required>
-                            <button class="btn btn-outline-light fw-900 px-4" type="submit">JOIN</button>
+                            <input type="text" name="invite_code" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="XXXXXX" required>
+                            <button class="btn btn-outline-light fw-900 px-4 border-2" type="submit">JOIN</button>
                         </div>
                     </form>
+
                     <div class="text-center my-3">
-                        <span class="x-small fw-900 text-white-50 uppercase">— OR —</span>
+                        <span class="x-small fw-900 text-white uppercase ls-2">— OR —</span>
                     </div>
+
                     <form action="{{ url_for('create_league') }}" method="POST">
-                        <label class="x-small fw-900 uppercase text-white-50 mb-1">New League Name</label>
+                        <label class="x-small fw-900 uppercase text-accent mb-2 d-block">New League Name</label>
                         <div class="input-group">
-                            <input type="text" name="league_name" class="form-control bg-black border-secondary text-white" placeholder="Island Kings" required>
-                            <button class="btn btn-accent text-dark fw-900" type="submit">CREATE</button>
+                            <input type="text" name="league_name" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="Island Kings" required>
+                            <button class="btn btn-accent text-dark fw-900 px-4 border-0" type="submit">CREATE</button>
                         </div>
                     </form>
                 </div>
@@ -109,11 +114,11 @@
         </div>
 
         <div class="mt-5 pt-5 text-start">
-            <h4 class="fw-900 uppercase ls-1 mb-4 border-bottom border-secondary pb-2">Meet the Cast</h4>
+            <h4 class="fw-900 uppercase ls-1 mb-4 border-bottom border-2 border-secondary pb-2 text-white">Meet the Cast</h4>
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
                 {% for p in cast %}
                 <div class="col">
-                    <div class="pro-card p-0 border-secondary h-100 cast-card overflow-hidden position-relative pointer transition-hover"
+                    <div class="pro-card p-0 border-2 border-secondary h-100 cast-card overflow-hidden position-relative pointer transition-hover"
                          onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.id }}`)">
 
                         <div class="cast-img-container">
@@ -122,9 +127,9 @@
                                 <div class="cast-out-overlay">VOTED OUT</div>
                             {% endif %}
                         </div>
-                        <div class="p-2 bg-black text-center border-top border-secondary">
+                        <div class="p-2 bg-black text-center border-top border-2 border-secondary">
                             <p class="x-small fw-900 text-white uppercase mb-0">{{ p.name }}</p>
-                            <div class="x-small text-accent fw-bold">{{ p.points|round(1) }} PTS</div>
+                            <div class="x-small text-accent fw-900">{{ p.points|round(1) }} PTS</div>
                         </div>
                     </div>
                 </div>
@@ -136,16 +141,16 @@
 
 <div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-black border-accent text-white shadow-lg">
+        <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
             <div class="modal-body p-0 position-relative">
                 <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
-                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top;">
-                <div class="p-4 bg-gradient-dark">
-                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1 small"></h6>
-                    <h2 id="modalName" class="fw-900 uppercase mb-3"></h2>
-                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);">
+                <div class="p-4 bg-black">
+                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1"></h6>
+                    <h2 id="modalName" class="fw-900 uppercase mb-3 text-white"></h2>
+                    <p id="modalDetails" class="text-white fw-bold small lh-lg"></p>
                     <div class="mt-4">
-                        <a id="modalProfileBtn" href="#" class="btn btn-accent btn-sm fw-900 uppercase px-4 ls-1">View Season Stats</a>
+                        <a id="modalProfileBtn" href="#" class="btn btn-accent btn-lg w-100 fw-900 uppercase ls-1 text-dark">View Season Stats</a>
                     </div>
                 </div>
             </div>
@@ -155,29 +160,26 @@
 
 <style>
     :root { --ocean: #0ea5e9; }
-    .bg-darker { background: #050505; }
-    .btn-ocean { background-color: var(--ocean); color: white; border: none; }
+    .bg-darker { background: #0c0c0c; }
+    .btn-ocean { background-color: var(--ocean); color: white; border: none; font-weight: 900; }
     .btn-ocean:hover { background-color: #0284c7; color: white; }
-    .hover-glow:hover { border-color: var(--accent) !important; background: #0a0a0a; }
+    .hover-glow:hover { border-color: var(--accent) !important; background: #111; }
     .pointer { cursor: pointer; }
+    .shadow-glow { box-shadow: 0 0 20px rgba(25, 135, 84, 0.6); }
 
-    .shadow-glow { box-shadow: 0 0 15px rgba(25, 135, 84, 0.4); border: none; }
-
-    /* Cast Card Styles */
-    .cast-card { transition: all 0.2s ease-in-out; }
-    .cast-card:hover { transform: translateY(-5px); border-color: var(--accent) !important; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-    .cast-img-container { height: 160px; position: relative; overflow: hidden; background: #111; }
+    .cast-card { transition: transform 0.2s ease; }
+    .cast-card:hover { transform: scale(1.05); border-color: var(--accent) !important; z-index: 10; }
+    .cast-img-container { height: 180px; position: relative; background: #000; }
     .cast-img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 
     .cast-out-overlay {
         position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%) rotate(-15deg);
-        background: rgba(220, 38, 38, 0.9); color: white;
-        font-weight: 900; padding: 5px 15px; border: 2px solid white;
-        font-size: 0.7rem; z-index: 2; pointer-events: none;
+        background: #dc2626; color: white;
+        font-weight: 900; padding: 5px 15px; border: 3px solid white;
+        font-size: 0.8rem; z-index: 2; pointer-events: none;
     }
 
-    .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 90%); }
     .italic { font-style: italic; }
 </style>
 
@@ -190,7 +192,6 @@
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
 
-        // Point the "View Stats" button to the player's specific page
         const profileBtn = document.getElementById('modalProfileBtn');
         if (profileBtn && id) {
             profileBtn.href = `/player/${id}`;
