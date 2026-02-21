@@ -1,6 +1,6 @@
 import os, uuid, requests, csv, json, resend
 from io import StringIO
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
@@ -389,9 +389,34 @@ def admin_scoring():
 def robots():
     return send_from_directory(app.static_folder, 'robots.txt')
 
-@app.route('/sitemap.xml')
+
+@app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
-    return send_from_directory(app.static_folder, 'sitemap.xml')
+    """Generate sitemap.xml dynamically."""
+    pages = []
+
+    # 1. Static Pages (Home, Global, Login)
+    # Using _external=True forces the full URL (https://yourdomain.com/...)
+    for rule in ['index', 'global_leaderboard', 'login']:
+        pages.append({
+            "loc": url_for(rule, _external=True),
+            "lastmod": "2026-02-20",
+            "priority": "1.0" if rule == 'index' else "0.8"
+        })
+
+    # 2. Dynamic Player Profiles
+    # This automatically adds EVERY player in your database to Google
+    players = Survivor.query.all()
+    for p in players:
+        pages.append({
+            "loc": url_for('player_profile', player_id=p.id, _external=True),
+            "lastmod": "2026-02-20",
+            "priority": "0.7"
+        })
+
+    sitemap_xml = render_template('sitemap_template.xml', pages=pages)
+    return Response(sitemap_xml, mimetype='application/xml')
+
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
