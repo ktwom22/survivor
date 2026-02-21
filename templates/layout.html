@@ -77,7 +77,7 @@
             text-transform: uppercase;
         }
 
-        /* How to Play Link Styling */
+        /* Pulsing Glow for How to Play Visibility */
         .how-to-link {
             color: var(--accent) !important;
             text-decoration: none;
@@ -87,8 +87,16 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            animation: pulse-border 2s infinite;
         }
-        .how-to-link:hover { opacity: 0.8; }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 204, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+        }
 
         .pro-card {
             background: var(--card-bg);
@@ -157,6 +165,21 @@
             text-transform: uppercase;
         }
 
+        /* Buy Me A Coffee Button Styling */
+        .bmc-btn {
+            display: inline-flex;
+            align-items: center;
+            background-color: #ffcc00;
+            color: #000000 !important;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .bmc-btn:hover { transform: scale(1.05); }
+
         ::-webkit-scrollbar { width: 12px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb {
@@ -175,6 +198,10 @@
             </a>
 
             <div class="d-flex align-items-center gap-3">
+                <a href="https://www.buymeacoffee.com/dropbuffs" target="_blank" class="btn btn-accent btn-sm d-none d-md-inline-block ls-1">
+                    <i class="fas fa-crown"></i> Go Pro
+                </a>
+
                 <a href="#" class="how-to-link uppercase ls-1" data-bs-toggle="modal" data-bs-target="#howToPlayModal">
                     <i class="fas fa-info-circle"></i> How to Play
                 </a>
@@ -204,6 +231,12 @@
     </div>
 
     <div class="py-5 text-center">
+        <div class="mb-4">
+            <a href="https://www.buymeacoffee.com/dropbuffs" target="_blank" class="bmc-btn rounded">
+                <img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" alt="BMC" style="height: 20px; margin-right: 8px;">
+                Support the Tribe
+            </a>
+        </div>
         <hr class="border-light opacity-100 mb-4" style="border-width: 2px;">
         <p class="text-accent fw-900 small uppercase ls-2">Drop Buffs &copy; 2026</p>
         <p class="text-white fw-900 x-small uppercase ls-1">The Ultimate Survivor Fantasy Experience</p>
@@ -217,6 +250,12 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
+                    <div class="pro-card border-accent bg-black mb-4 text-center">
+                        <h4 class="fw-900 text-accent uppercase">Click Once. Outplay.</h4>
+                        <p class="small">Support the league on <span class="text-accent fw-bold">Buy Me A Coffee</span> to unlock the 👑 Gold Crown on the Global Leaderboard.</p>
+                        <a href="https://www.buymeacoffee.com/dropbuffs" target="_blank" class="btn btn-accent w-100 fw-900">Unlock Season Pass — $5</a>
+                    </div>
+
                     <h6 class="text-accent fw-900 uppercase ls-1">1. Build Your Tribe</h6>
                     <p class="small mb-4">Draft your team of survivors. Once the season starts, your roster is <strong>locked</strong>. No trades, no changes—your picks are permanent.</p>
 
@@ -265,6 +304,8 @@
             </div>
         </div>
     </div>
+
+    <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="dropbuffs" data-description="Support the Tribe!" data-message="Unlock the Gold Crown and keep the game ad-free!" data-color="#ffcc00" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
