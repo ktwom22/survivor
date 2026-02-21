@@ -10,10 +10,16 @@
         {% for s in stats %}
         <div class="col-12 col-md-6">
             <div class="pro-card border-secondary d-flex align-items-center p-3">
-                <img src="{{ s.image }}" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                
+                <a href="{{ url_for('player_profile', slug=s.slug) }}">
+                    <img src="{{ s.image }}" alt="{{ s.name }}" class="rounded shadow-hover" style="width: 60px; height: 60px; object-fit: cover; border: 1px solid #444;">
+                </a>
+
                 <div class="flex-grow-1 ms-3">
-                    <h5 class="fw-900 m-0 uppercase text-white">{{ s.name }}</h5>
+                    <h5 class="fw-900 m-0 uppercase">
+                        <a href="{{ url_for('player_profile', slug=s.slug) }}" class="text-white text-decoration-none hover-accent transition">
+                            {{ s.name }}
+                        </a>
+                    </h5>
                     <div class="progress bg-black border border-secondary mt-2" style="height: 8px;">
                         <div class="progress-bar bg-accent" style="width: {{ s.total_pct }}%"></div>
                     </div>
@@ -24,7 +30,7 @@
                     <div class="fw-900 fs-4 text-accent">{{ s.total_pct }}%</div>
                 </div>
             </div>
-            
+
             <div class="d-flex justify-content-between px-3 py-2 bg-black-50 border-start border-end border-bottom border-secondary rounded-bottom">
                 <span class="x-small text-white-50 uppercase">As Gold Captain: <strong>{{ s.gold_pct }}%</strong></span>
                 <span class="x-small text-white-50 uppercase">Any Captain: <strong>{{ s.captain_pct }}%</strong></span>
@@ -37,5 +43,18 @@
 <style>
     .bg-black-50 { background: rgba(0,0,0,0.5); }
     .progress-bar { transition: width 1s ease-in-out; }
+
+    /* Smooth transition for links */
+    .transition { transition: all 0.2s ease; }
+
+    /* Highlight name on hover */
+    .hover-accent:hover { color: var(--accent) !important; }
+
+    /* Make the image "pop" when hovered */
+    .shadow-hover:hover {
+        transform: scale(1.1);
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+    }
 </style>
 {% endblock %}

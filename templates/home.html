@@ -119,7 +119,7 @@
                 {% for p in cast %}
                 <div class="col">
                     <div class="pro-card p-0 border-2 border-secondary h-100 cast-card overflow-hidden position-relative pointer transition-hover"
-                         onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.id }}`)">
+                         onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.slug or p.id }}`)">
 
                         <div class="cast-img-container">
                             <img src="{{ p.image_url }}" alt="{{ p.name }}" class="cast-img">
@@ -184,7 +184,7 @@
 </style>
 
 <script>
-    function showQuickLook(event, name, img, season, details, id) {
+    function showQuickLook(event, name, img, season, details, identifier) {
         if (event) { event.preventDefault(); }
 
         document.getElementById('modalName').innerText = name;
@@ -193,8 +193,9 @@
         document.getElementById('modalDetails').innerText = details;
 
         const profileBtn = document.getElementById('modalProfileBtn');
-        if (profileBtn && id) {
-            profileBtn.href = `/player/${id}`;
+        if (profileBtn && identifier) {
+            // Updated to handle both slugs and numeric IDs seamlessly
+            profileBtn.href = `/player/${identifier}`;
         }
 
         const modalEl = document.getElementById('quickLookModal');
