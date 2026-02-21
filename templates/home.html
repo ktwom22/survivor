@@ -50,6 +50,10 @@
                                 <i class="bi bi-person-plus-fill me-2"></i>Draft Global Tribe
                             </a>
                         {% endif %}
+
+                        <button onclick="shareRules()" class="btn btn-outline-accent fw-900 uppercase ls-1 px-4 border-2">
+                            <i class="bi bi-share-fill me-2"></i>Share Rules
+                        </button>
                     </div>
                 </div>
                 <div class="col-lg-5 d-none d-lg-block text-center">
@@ -158,6 +162,28 @@
     </div>
 </div>
 
+<div class="modal fade" id="rulesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-900 uppercase">Scoring Rules</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="p-3 bg-darker border border-secondary rounded mb-3">
+                    <h6 class="text-accent fw-900 mb-3">POINT BREAKDOWN</h6>
+                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Survive Episode</span><span class="text-accent">+2.0</span></div>
+                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Win Immunity</span><span class="text-accent">+5.0</span></div>
+                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Confessional Cry</span><span class="text-accent">+2.0</span></div>
+                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Advantage Found</span><span class="text-accent">+4.0</span></div>
+                    <div class="d-flex justify-content-between mb-1 small fw-bold text-danger"><span>Quit Game</span><span>-25.0</span></div>
+                </div>
+                <p class="small text-white-50 italic">Draft your tribe at dropbuffs.com</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     :root { --ocean: #0ea5e9; }
     .bg-darker { background: #0c0c0c; }
@@ -166,6 +192,8 @@
     .hover-glow:hover { border-color: var(--accent) !important; background: #111; }
     .pointer { cursor: pointer; }
     .shadow-glow { box-shadow: 0 0 20px rgba(25, 135, 84, 0.6); }
+    .btn-outline-accent { border-color: var(--accent); color: var(--accent); }
+    .btn-outline-accent:hover { background-color: var(--accent); color: #000; }
 
     .cast-card { transition: transform 0.2s ease; }
     .cast-card:hover { transform: scale(1.05); border-color: var(--accent) !important; z-index: 10; }
@@ -186,21 +214,39 @@
 <script>
     function showQuickLook(event, name, img, season, details, identifier) {
         if (event) { event.preventDefault(); }
-
         document.getElementById('modalName').innerText = name;
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
-
         const profileBtn = document.getElementById('modalProfileBtn');
         if (profileBtn && identifier) {
-            // Updated to handle both slugs and numeric IDs seamlessly
             profileBtn.href = `/player/${identifier}`;
         }
-
         const modalEl = document.getElementById('quickLookModal');
         const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         bsModal.show();
+    }
+
+    async function shareRules() {
+        const shareData = {
+            title: 'Survivor 50 Fantasy Rules',
+            text: 'Join my Survivor 50 Tribe! Points for crying, immunity, and survival. Draft here:',
+            url: window.location.origin
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                console.log('Share error', err);
+            }
+        } else {
+            // Fallback: Show the rules modal if sharing isn't supported
+            const rulesModal = new bootstrap.Modal(document.getElementById('rulesModal'));
+            rulesModal.show();
+            navigator.clipboard.writeText(window.location.origin);
+            alert("Site link copied to clipboard!");
+        }
     }
 </script>
 
