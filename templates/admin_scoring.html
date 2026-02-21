@@ -36,7 +36,9 @@
                             <th class="text-center">Surv</th>
                             <th class="text-center">Imm</th>
                             <th class="text-center">Rew</th>
-                            <th class="text-center text-accent">Adv+</th> <th class="text-center text-info">JRN</th>   <th class="text-center">Mrg</th>
+                            <th class="text-center text-accent">Adv+</th>
+                            <th class="text-center text-info">JRN</th>
+                            <th class="text-center text-warning">PKT</th> <th class="text-center">Mrg</th>
                             <th class="text-center">F5</th>
                             <th class="text-center">F3</th>
                             <th class="text-center text-accent">WIN</th>
@@ -54,12 +56,12 @@
                             <td class="text-center p-3"><input type="checkbox" name="surv_{{ s.id }}" class="form-check-input" checked></td>
 
                             <td class="text-center p-3"><input type="checkbox" name="imm_{{ s.id }}" class="form-check-input"></td>
-
                             <td class="text-center p-3"><input type="checkbox" name="rew_{{ s.id }}" class="form-check-input"></td>
 
                             <td class="text-center p-3"><input type="checkbox" name="adv_{{ s.id }}" class="form-check-input border-accent"></td>
-
                             <td class="text-center p-3"><input type="checkbox" name="jour_{{ s.id }}" class="form-check-input border-info"></td>
+
+                            <td class="text-center p-3"><input type="checkbox" name="pocket_{{ s.id }}" class="form-check-input border-warning"></td>
 
                             <td class="text-center p-3"><input type="checkbox" name="mrg_{{ s.id }}" class="form-check-input"></td>
                             <td class="text-center p-3"><input type="checkbox" name="f5_{{ s.id }}" class="form-check-input"></td>
@@ -101,6 +103,12 @@
         border: 2px solid #555;
         margin: 0;
         cursor: pointer;
+    }
+
+    /* Warning style for In Pocket penalty */
+    .form-check-input.border-warning:checked {
+        background-color: #ffc107;
+        border-color: #fff;
     }
 
     .form-check-input:checked {

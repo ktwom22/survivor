@@ -23,12 +23,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # --- GLOBAL DEFAULTS ---
-# Updated 'penalty' to 'advantage' and added 'journey'
 POINTS_CONFIG = {
     "survive_episode": 2.0, "win_immunity": 5.0, "win_reward": 2.0,
     "found_advantage": 4.0, "made_merge": 5.0, "final_five": 8.0,
-    "final_three": 12.0, "winner": 20.0, "confessional_cry": -2.0,
-    "In Pocket": -5.0, "journey": 3.0, "quit_game": -25.0
+    "final_three": 12.0, "winner": 20.0, "confessional_cry": 2.0,
+    "in_pocket": -5.0, "journey": 3.0, "quit_game": -25.0
 }
 
 # --- MODELS ---
@@ -57,7 +56,8 @@ class WeeklyStat(db.Model):
     immunity = db.Column(db.Boolean, default=False)
     reward = db.Column(db.Boolean, default=False)
     advantage = db.Column(db.Boolean, default=False)
-    journey = db.Column(db.Boolean, default=False) # NEW
+    journey = db.Column(db.Boolean, default=False)
+    in_pocket = db.Column(db.Boolean, default=False) # NEW: Advantage/Idol in Pocket
     merge = db.Column(db.Boolean, default=False)
     f5 = db.Column(db.Boolean, default=False)
     f3 = db.Column(db.Boolean, default=False)
@@ -70,7 +70,7 @@ class WeeklyStat(db.Model):
         mapping = {
             "survive_episode": self.survived, "win_immunity": self.immunity,
             "win_reward": self.reward, "found_advantage": self.advantage,
-            "went_on_journey": self.journey, # NEW
+            "went_on_journey": self.journey, "in_pocket": self.in_pocket, # MAPPED
             "made_merge": self.merge, "final_five": self.f5,
             "final_three": self.f3, "winner": self.winner,
             "confessional_cry": self.crying, "quit_game": self.quit
@@ -374,7 +374,8 @@ def admin_scoring():
                     immunity=request.form.get(f'imm_{s.id}') == 'on',
                     reward=request.form.get(f'rew_{s.id}') == 'on',
                     advantage=request.form.get(f'adv_{s.id}') == 'on',
-                    journey=request.form.get(f'jour_{s.id}') == 'on', # NEW
+                    journey=request.form.get(f'jour_{s.id}') == 'on',
+                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on', # PROCESSING POCKET STAT
                     crying=request.form.get(f'cry_{s.id}') == 'on'
                 )
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
