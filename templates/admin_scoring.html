@@ -9,7 +9,7 @@
         </form>
     </div>
 
-    <div class="pro-card p-2 p-md-4 border-secondary">
+    <div class="pro-card p-2 p-md-4 border-secondary bg-black">
         <form action="{{ url_for('admin_scoring') }}" method="POST">
             <div class="row mb-3 align-items-end g-2">
                 <div class="col-6 col-md-3">
@@ -20,7 +20,7 @@
                     <div class="d-flex flex-wrap gap-1 justify-content-md-end">
                         {% for key, val in config.items() %}
                             <span class="badge bg-dark border border-secondary" style="font-size: 0.55rem;">
-                                {{ key[:3]|upper }}: {{ val }}
+                                {{ key[:5]|upper }}: {{ val }}
                             </span>
                         {% endfor %}
                     </div>
@@ -30,19 +30,17 @@
             <div class="table-responsive border-top border-secondary" style="max-height: 65vh; overflow-y: auto;">
                 <table class="table table-dark table-hover align-middle m-0" id="scoringTable">
                     <thead class="sticky-top bg-black" style="z-index: 10;">
-                        <tr class="x-small fw-900 uppercase ls-1 border-bottom border-secondary">
+                        <tr class="x-small fw-900 uppercase ls-1 border-bottom border-white">
                             <th class="sticky-col bg-black py-3">Survivor</th>
                             <th class="text-center text-danger">Out</th>
                             <th class="text-center">Surv</th>
                             <th class="text-center">Imm</th>
                             <th class="text-center">Rew</th>
-                            <th class="text-center">Adv</th>
-                            <th class="text-center">Mrg</th>
+                            <th class="text-center text-accent">Adv+</th> <th class="text-center text-info">JRN</th>   <th class="text-center">Mrg</th>
                             <th class="text-center">F5</th>
                             <th class="text-center">F3</th>
                             <th class="text-center text-accent">WIN</th>
                             <th class="text-center text-info">CRY</th>
-                            <th class="text-center text-warning">PNL</th>
                             <th class="text-center text-danger">QUIT</th>
                         </tr>
                     </thead>
@@ -50,17 +48,25 @@
                         {% for s in survivors if not s.is_out %}
                         <tr class="border-bottom border-secondary-subtle">
                             <td class="sticky-col bg-black fw-bold text-white small">{{ s.name.split(' ')[0] }}</td>
+
                             <td class="text-center p-3"><input type="checkbox" name="voted_out_{{ s.id }}" class="form-check-input border-danger"></td>
+
                             <td class="text-center p-3"><input type="checkbox" name="surv_{{ s.id }}" class="form-check-input" checked></td>
+
                             <td class="text-center p-3"><input type="checkbox" name="imm_{{ s.id }}" class="form-check-input"></td>
+
                             <td class="text-center p-3"><input type="checkbox" name="rew_{{ s.id }}" class="form-check-input"></td>
-                            <td class="text-center p-3"><input type="checkbox" name="adv_{{ s.id }}" class="form-check-input"></td>
+
+                            <td class="text-center p-3"><input type="checkbox" name="adv_{{ s.id }}" class="form-check-input border-accent"></td>
+
+                            <td class="text-center p-3"><input type="checkbox" name="jour_{{ s.id }}" class="form-check-input border-info"></td>
+
                             <td class="text-center p-3"><input type="checkbox" name="mrg_{{ s.id }}" class="form-check-input"></td>
                             <td class="text-center p-3"><input type="checkbox" name="f5_{{ s.id }}" class="form-check-input"></td>
                             <td class="text-center p-3"><input type="checkbox" name="f3_{{ s.id }}" class="form-check-input"></td>
+
                             <td class="text-center p-3"><input type="checkbox" name="win_{{ s.id }}" class="form-check-input border-accent"></td>
                             <td class="text-center p-3"><input type="checkbox" name="cry_{{ s.id }}" class="form-check-input border-info"></td>
-                            <td class="text-center p-3"><input type="checkbox" name="pnl_{{ s.id }}" class="form-check-input border-warning"></td>
                             <td class="text-center p-3"><input type="checkbox" name="quit_{{ s.id }}" class="form-check-input border-danger"></td>
                         </tr>
                         {% endfor %}
@@ -76,12 +82,11 @@
 </div>
 
 <style>
-    /* Mobile-optimized Sticky Column */
     .sticky-col {
         position: sticky;
         left: 0;
         z-index: 5;
-        border-right: 2px solid #333 !important;
+        border-right: 2px solid #ffffff !important;
         min-width: 90px;
         max-width: 110px;
         white-space: nowrap;
@@ -89,46 +94,45 @@
         text-overflow: ellipsis;
     }
 
-    /* Large tap targets for mobile thumbs */
     .form-check-input {
-        width: 1.4rem;
-        height: 1.4rem;
-        background-color: #111;
-        border-color: #444;
+        width: 1.5rem;
+        height: 1.5rem;
+        background-color: #000;
+        border: 2px solid #555;
         margin: 0;
-        pointer-events: none; /* Allows the TD click script to handle it */
+        cursor: pointer;
     }
 
     .form-check-input:checked {
         background-color: var(--accent);
-        border-color: var(--accent);
+        border-color: #fff;
     }
 
-    /* Table Cell Clickability */
-    td { cursor: pointer; }
-    td:hover { background: rgba(255, 204, 0, 0.05); }
+    td { cursor: pointer; transition: background 0.2s; }
+    td:hover { background: rgba(255, 255, 255, 0.1) !important; }
 
-    /* Hide horizontal scrollbar but keep functionality */
-    .table-responsive::-webkit-scrollbar { height: 4px; }
+    .table-responsive::-webkit-scrollbar { height: 6px; }
+    .table-responsive::-webkit-scrollbar-thumb { background: var(--accent); }
 
     @media (max-width: 768px) {
         .pro-card { border-radius: 0; border-inline: none; }
-        .btn-accent { border-radius: 12px; }
     }
 </style>
 
 <script>
-    // Mobilization Script: Allows tapping the cell to toggle checkboxes
+    // Cell-click toggle for easier scoring on mobile
     document.querySelectorAll('#scoringTable td').forEach(cell => {
         cell.addEventListener('click', function(e) {
-            // Don't trigger if the first column (name) is clicked
             if (this.classList.contains('sticky-col')) return;
+
+            // If the user clicked the checkbox directly, don't double-toggle
+            if (e.target.type === 'checkbox') return;
 
             const cb = this.querySelector('input[type="checkbox"]');
             if (cb) {
                 cb.checked = !cb.checked;
-                // Visual feedback
-                this.style.backgroundColor = cb.checked ? 'rgba(255,204,0,0.1)' : 'transparent';
+                // Add temporary highlight
+                this.style.backgroundColor = cb.checked ? 'rgba(255,204,0,0.15)' : 'transparent';
             }
         });
     });

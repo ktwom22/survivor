@@ -23,11 +23,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # --- GLOBAL DEFAULTS ---
+# Updated 'penalty' to 'advantage' and added 'journey'
 POINTS_CONFIG = {
     "survive_episode": 2.0, "win_immunity": 5.0, "win_reward": 2.0,
     "found_advantage": 4.0, "made_merge": 5.0, "final_five": 8.0,
     "final_three": 12.0, "winner": 20.0, "confessional_cry": 2.0,
-    "penalty": -2.0, "quit_game": -25.0
+    "advantage": 5.0, "journey": 3.0, "quit_game": -25.0
 }
 
 # --- MODELS ---
@@ -56,12 +57,12 @@ class WeeklyStat(db.Model):
     immunity = db.Column(db.Boolean, default=False)
     reward = db.Column(db.Boolean, default=False)
     advantage = db.Column(db.Boolean, default=False)
+    journey = db.Column(db.Boolean, default=False) # NEW
     merge = db.Column(db.Boolean, default=False)
     f5 = db.Column(db.Boolean, default=False)
     f3 = db.Column(db.Boolean, default=False)
     winner = db.Column(db.Boolean, default=False)
     crying = db.Column(db.Boolean, default=False)
-    penalty = db.Column(db.Boolean, default=False)
     quit = db.Column(db.Boolean, default=False)
 
     def calculate_for_league(self, league_pts):
@@ -69,10 +70,10 @@ class WeeklyStat(db.Model):
         mapping = {
             "survive_episode": self.survived, "win_immunity": self.immunity,
             "win_reward": self.reward, "found_advantage": self.advantage,
+            "went_on_journey": self.journey, # NEW
             "made_merge": self.merge, "final_five": self.f5,
             "final_three": self.f3, "winner": self.winner,
-            "confessional_cry": self.crying, "penalty": self.penalty,
-            "quit_game": self.quit
+            "confessional_cry": self.crying, "quit_game": self.quit
         }
         for key, active in mapping.items():
             if active: t += league_pts.get(key, 0)
@@ -300,38 +301,24 @@ def draft(code):
 def join_global():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-
-    # Check if they already have a global roster
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if not r:
-        # Create an empty global roster so they are "in"
         r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r)
-        db.session.commit()
+        db.session.add(r); db.session.commit()
         flash("Welcome to the Global Season! Time to draft your tribe.", "success")
-
     return redirect(url_for('global_draft_page'))
 
-
-@app.route('/global-leaderboard')
 @app.route('/global-leaderboard')
 def global_leaderboard():
-    # 1. Fetch all global entrants
     global_rosters = Roster.query.filter_by(is_global=True).all()
     lb = sorted(
         [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
          r.owner], key=lambda x: x['score'], reverse=True)
-
-    # 2. Get the 'view_user' from the URL (?view_user=NAME)
     view_username = request.args.get('view_user')
-
-    # If no one is clicked, default to the person logged in
     if not view_username and 'username' in session:
         view_username = session['username']
-
     target_tribe_data = None
     display_name = "Global Entry"
-
     if view_username:
         target_user = User.query.filter_by(username=view_username).first()
         if target_user:
@@ -339,13 +326,7 @@ def global_leaderboard():
             if display_roster:
                 target_tribe_data = get_roster_data(display_roster)
                 display_name = f"{target_user.username}'s Tribe"
-
-    return render_template('global_standings.html',
-                           full_global_leaderboard=lb,
-                           total_global_entrants=len(lb),
-                           my_tribe=target_tribe_data,  # This is the "viewed" tribe
-                           display_name=display_name)
-
+    return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb), my_tribe=target_tribe_data, display_name=display_name)
 
 @app.route('/global/draft')
 def global_draft_page():
@@ -386,14 +367,21 @@ def admin_scoring():
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
                 if request.form.get(f'voted_out_{s.id}'): s.is_out = True
-                stat = WeeklyStat(player_id=s.id, week=wn, survived=request.form.get(f'surv_{s.id}') == 'on', immunity=request.form.get(f'imm_{s.id}') == 'on', reward=request.form.get(f'rew_{s.id}') == 'on', advantage=request.form.get(f'adv_{s.id}') == 'on', crying=request.form.get(f'cry_{s.id}') == 'on')
+                stat = WeeklyStat(
+                    player_id=s.id,
+                    week=wn,
+                    survived=request.form.get(f'surv_{s.id}') == 'on',
+                    immunity=request.form.get(f'imm_{s.id}') == 'on',
+                    reward=request.form.get(f'rew_{s.id}') == 'on',
+                    advantage=request.form.get(f'adv_{s.id}') == 'on',
+                    journey=request.form.get(f'jour_{s.id}') == 'on', # NEW
+                    crying=request.form.get(f'cry_{s.id}') == 'on'
+                )
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
             db.session.commit(); flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
-
-
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
