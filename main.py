@@ -30,7 +30,6 @@ POINTS_CONFIG = {
     "in_pocket": -5.0, "journey": 3.0, "quit_game": -25.0
 }
 
-
 # --- MODELS ---
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -38,7 +37,6 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     rosters = db.relationship('Roster', backref='owner', cascade="all, delete-orphan", lazy=True)
-
 
 class Survivor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -50,7 +48,6 @@ class Survivor(db.Model):
     is_out = db.Column(db.Boolean, default=False)
     stats = db.relationship('WeeklyStat', backref='player', lazy=True)
 
-
 class WeeklyStat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('survivor.id'))
@@ -60,7 +57,7 @@ class WeeklyStat(db.Model):
     reward = db.Column(db.Boolean, default=False)
     advantage = db.Column(db.Boolean, default=False)
     journey = db.Column(db.Boolean, default=False)
-    in_pocket = db.Column(db.Boolean, default=False)
+    in_pocket = db.Column(db.Boolean, default=False) # NEW: Advantage/Idol in Pocket
     merge = db.Column(db.Boolean, default=False)
     f5 = db.Column(db.Boolean, default=False)
     f3 = db.Column(db.Boolean, default=False)
@@ -73,7 +70,7 @@ class WeeklyStat(db.Model):
         mapping = {
             "survive_episode": self.survived, "win_immunity": self.immunity,
             "win_reward": self.reward, "found_advantage": self.advantage,
-            "went_on_journey": self.journey, "in_pocket": self.in_pocket,
+            "went_on_journey": self.journey, "in_pocket": self.in_pocket, # MAPPED
             "made_merge": self.merge, "final_five": self.f5,
             "final_three": self.f3, "winner": self.winner,
             "confessional_cry": self.crying, "quit_game": self.quit
@@ -81,7 +78,6 @@ class WeeklyStat(db.Model):
         for key, active in mapping.items():
             if active: t += league_pts.get(key, 0)
         return t
-
 
 class League(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -92,7 +88,6 @@ class League(db.Model):
     def get_points(self):
         return json.loads(self.settings_json) if self.settings_json else POINTS_CONFIG
 
-
 class Roster(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     league_id = db.Column(db.Integer, db.ForeignKey('league.id'), nullable=True)
@@ -102,7 +97,6 @@ class Roster(db.Model):
     cap2_id = db.Column(db.Integer)
     cap3_id = db.Column(db.Integer)
     regular_ids = db.Column(db.String(200))
-
 
 # --- HELPERS ---
 def sync_players():
@@ -125,7 +119,6 @@ def sync_players():
     except Exception as e:
         print(f"Sync error: {e}")
 
-
 def get_roster_data(roster):
     if not roster: return None
     c1 = db.session.get(Survivor, roster.cap1_id) if roster.cap1_id else None
@@ -139,7 +132,6 @@ def get_roster_data(roster):
                 if player: reg_list.append(player)
     return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": reg_list}
 
-
 def calculate_roster_score(roster, pts_config):
     data = get_roster_data(roster)
     if not data: return 0.0
@@ -151,36 +143,27 @@ def calculate_roster_score(roster, pts_config):
         score += sum(s.calculate_for_league(pts_config) for s in p.stats)
     return round(score, 1)
 
-
 # --- ROUTES ---
 
 @app.route('/')
-def global_leaderboard():  # Replaced index() with primary landing name
+def index():
+    all_cast = Survivor.query.all()
+    leagues = []
+    user_in_global = False
+    if 'user_id' in session:
+        my_rosters = Roster.query.filter_by(user_id=session['user_id']).all()
+        leagues = League.query.filter(League.id.in_([r.league_id for r in my_rosters if r.league_id])).all()
+        user_in_global = any(r.is_global for r in my_rosters)
+
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    lb = sorted(
-        [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
-         r.owner], key=lambda x: x['score'], reverse=True)
+    global_lb = []
+    for r in global_rosters:
+        if r.owner:
+            global_lb.append({'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)})
 
-    view_username = request.args.get('view_user')
-    if not view_username and 'username' in session:
-        view_username = session['username']
-
-    target_tribe_data = None
-    display_name = "Global Entry"
-    if view_username:
-        target_user = User.query.filter_by(username=view_username).first()
-        if target_user:
-            display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
-            if display_roster:
-                target_tribe_data = get_roster_data(display_roster)
-                display_name = f"{target_user.username}'s Tribe"
-
-    return render_template('global_standings.html',
-                           full_global_leaderboard=lb,
-                           total_global_entrants=len(lb),
-                           my_tribe=target_tribe_data,
-                           display_name=display_name)
-
+    global_top_5 = sorted(global_lb, key=lambda x: x['score'], reverse=True)[:5]
+    return render_template('home.html', user_leagues=leagues, cast=all_cast, global_top_5=global_top_5,
+                           total_global_entrants=len(global_rosters), user_in_global=user_in_global)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -188,33 +171,26 @@ def signup():
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         new_u = User(username=request.form.get('username'), email=request.form.get('email'), password=hashed_pw)
         try:
-            db.session.add(new_u);
-            db.session.commit()
+            db.session.add(new_u); db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
-            return redirect(url_for('global_leaderboard'))
+            return redirect(url_for('home'))
         except:
-            db.session.rollback();
-            flash("Username/Email already exists.")
+            db.session.rollback(); flash("Username/Email already exists.")
     return render_template('signup.html')
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u = User.query.filter(
-            (User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
+        u = User.query.filter((User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
-            return redirect(url_for('global_leaderboard'))
+            return redirect(url_for('home'))
         flash("Invalid credentials.", "danger")
     return render_template('login.html')
 
-
 @app.route('/logout')
 def logout():
-    session.clear();
-    return redirect(url_for('global_leaderboard'))
-
+    session.clear(); return redirect(url_for('home'))
 
 # --- PASSWORD RECOVERY ---
 
@@ -246,7 +222,6 @@ def forgot_password():
             flash("If registered, a link has been sent.", "info")
     return render_template('forgot_password.html')
 
-
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_with_token(token):
     try:
@@ -262,34 +237,27 @@ def reset_with_token(token):
         return redirect(url_for('login'))
     return render_template('reset_password.html')
 
-
 # --- LEAGUE ROUTES ---
 
 @app.route('/create_league', methods=['POST'])
 def create_league():
     if 'user_id' not in session: return redirect(url_for('login'))
-    return render_template('create_league_config.html', league_name=request.form.get('league_name', 'New League'),
-                           default_points=POINTS_CONFIG)
-
+    return render_template('create_league_config.html', league_name=request.form.get('league_name', 'New League'), default_points=POINTS_CONFIG)
 
 @app.route('/finalize_league', methods=['POST'])
 def finalize_league():
     if 'user_id' not in session: return redirect(url_for('login'))
-    custom_pts = {key: float(request.form.get(f'val_{key}', 0)) if request.form.get(f'active_{key}') == 'on' else 0 for
-                  key in POINTS_CONFIG.keys()}
+    custom_pts = {key: float(request.form.get(f'val_{key}', 0)) if request.form.get(f'active_{key}') == 'on' else 0 for key in POINTS_CONFIG.keys()}
     code = str(uuid.uuid4())[:6].upper()
     new_l = League(name=request.form.get('league_name'), invite_code=code, settings_json=json.dumps(custom_pts))
-    db.session.add(new_l);
-    db.session.flush()
+    db.session.add(new_l); db.session.flush()
     db.session.add(Roster(league_id=new_l.id, user_id=session['user_id']))
     db.session.commit()
     return redirect(url_for('league_success', code=code))
 
-
 @app.route('/league-created/<code>')
 def league_success(code):
     return render_template('league_success.html', league=League.query.filter_by(invite_code=code).first_or_404())
-
 
 @app.route('/join_league', methods=['POST'])
 def join_league():
@@ -300,9 +268,7 @@ def join_league():
             db.session.add(Roster(league_id=l.id, user_id=session['user_id']))
             db.session.commit()
         return redirect(url_for('league_dashboard', code=l.invite_code))
-    flash("League not found.", "danger");
-    return redirect(url_for('global_leaderboard'))
-
+    flash("League not found.", "danger"); return redirect(url_for('home'))
 
 @app.route('/league/<code>')
 def league_dashboard(code):
@@ -311,15 +277,10 @@ def league_dashboard(code):
     l_pts = league.get_points()
     target_username = request.args.get('view_user', session.get('username'))
     all_rosters = Roster.query.filter_by(league_id=league.id).all()
-    leaderboard = sorted(
-        [{'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)} for r in all_rosters if r.owner],
-        key=lambda x: x['score'], reverse=True)
+    leaderboard = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)} for r in all_rosters if r.owner], key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
-    return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r),
-                           target_username=target_username, available=Survivor.query.filter_by(is_out=False).all(),
-                           league_pts=l_pts)
-
+    return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r), target_username=target_username, available=Survivor.query.filter_by(is_out=False).all(), league_pts=l_pts)
 
 @app.route('/draft/<code>', methods=['POST'])
 def draft(code):
@@ -331,12 +292,10 @@ def draft(code):
         regs = request.form.getlist('regs')
         r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
         r.regular_ids = ",".join(regs)
-        db.session.commit();
-        flash("Draft saved!", "success")
+        db.session.commit(); flash("Draft saved!", "success")
     return redirect(url_for('league_dashboard', code=code))
 
-
-# --- GLOBAL DRAFT MANAGEMENT ---
+# --- GLOBAL STANDINGS ---
 
 @app.route('/join-global', methods=['POST'])
 def join_global():
@@ -345,44 +304,54 @@ def join_global():
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if not r:
         r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r);
-        db.session.commit()
+        db.session.add(r); db.session.commit()
         flash("Welcome to the Global Season! Time to draft your tribe.", "success")
     return redirect(url_for('global_draft_page'))
 
+@app.route('/global-leaderboard')
+def global_leaderboard():
+    global_rosters = Roster.query.filter_by(is_global=True).all()
+    lb = sorted(
+        [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
+         r.owner], key=lambda x: x['score'], reverse=True)
+    view_username = request.args.get('view_user')
+    if not view_username and 'username' in session:
+        view_username = session['username']
+    target_tribe_data = None
+    display_name = "Global Entry"
+    if view_username:
+        target_user = User.query.filter_by(username=view_username).first()
+        if target_user:
+            display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
+            if display_roster:
+                target_tribe_data = get_roster_data(display_roster)
+                display_name = f"{target_user.username}'s Tribe"
+    return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb), my_tribe=target_tribe_data, display_name=display_name)
 
 @app.route('/global/draft')
 def global_draft_page():
     if 'user_id' not in session: return redirect(url_for('login'))
     roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     available = Survivor.query.filter_by(is_out=False).all()
-    return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG,
-                           get_roster_data=get_roster_data)
-
+    return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG, get_roster_data=get_roster_data)
 
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
     if 'user_id' not in session: return redirect(url_for('login'))
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'],
-                                                                                             is_global=True)
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'], is_global=True)
     if not r.id: db.session.add(r)
-    r.cap1_id, r.cap2_id, r.cap3_id = int(request.form.get('cap1')), int(request.form.get('cap2')), int(
-        request.form.get('cap3'))
+    r.cap1_id, r.cap2_id, r.cap3_id = int(request.form.get('cap1')), int(request.form.get('cap2')), int(request.form.get('cap3'))
     r.regular_ids = ",".join(request.form.getlist('regs'))
-    db.session.commit();
-    flash("Global Tribe saved!", "success")
-    return redirect(url_for('global_leaderboard'))
-
+    db.session.commit(); flash("Global Tribe saved!", "success")
+    return redirect(url_for('home'))
 
 # --- PROFILES & ADMIN ---
 
 @app.route('/player/<int:player_id>')
 def player_profile(player_id):
     p = Survivor.query.get_or_404(player_id)
-    totals = {'surv': sum(1 for s in p.stats if s.survived), 'imm': sum(1 for s in p.stats if s.immunity),
-              'score': round(p.points, 1)}
+    totals = {'surv': sum(1 for s in p.stats if s.survived), 'imm': sum(1 for s in p.stats if s.immunity), 'score': round(p.points, 1)}
     return render_template('player_profile.html', p=p, totals=totals)
-
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
@@ -393,8 +362,7 @@ def admin_scoring():
         return render_template('admin_login.html')
     survivors = Survivor.query.all()
     if request.method == 'POST':
-        if 'sync_all' in request.form:
-            sync_players()
+        if 'sync_all' in request.form: sync_players()
         else:
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
@@ -407,13 +375,12 @@ def admin_scoring():
                     reward=request.form.get(f'rew_{s.id}') == 'on',
                     advantage=request.form.get(f'adv_{s.id}') == 'on',
                     journey=request.form.get(f'jour_{s.id}') == 'on',
-                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on',
+                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on', # PROCESSING POCKET STAT
                     crying=request.form.get(f'cry_{s.id}') == 'on'
                 )
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
-            db.session.commit();
-            flash(f"Week {wn} results published!")
+            db.session.commit(); flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
 
@@ -425,9 +392,12 @@ def robots():
 
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
+    """Generate sitemap.xml dynamically."""
     pages = []
-    # Ensure these endpoint names match your 'def function_name' exactly
-    main_functions = ['global_leaderboard', 'login', 'signup']
+
+    # Update these strings to match the EXACT function names in your main.py
+    # If your home page is '@app.route("/") def home():', use 'home'
+    main_functions = ['global_leaderboard', 'login']
 
     for func in main_functions:
         try:
@@ -437,8 +407,9 @@ def sitemap():
                 "priority": "1.0" if func == 'global_leaderboard' else "0.8"
             })
         except Exception as e:
-            print(f"Sitemap build error for {func}: {e}")
+            print(f"Skipping {func}: {e}")
 
+    # Dynamic Player Profiles
     try:
         players = Survivor.query.all()
         for p in players:
@@ -456,11 +427,8 @@ def sitemap():
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
-    db.drop_all();
-    db.create_all();
-    sync_players()
+    db.drop_all(); db.create_all(); sync_players()
     return "Database reset! <a href='/'>Go Home</a>"
-
 
 if __name__ == '__main__':
     with app.app_context(): db.create_all()
