@@ -57,7 +57,7 @@ class Survivor(db.Model):
 class WeeklyStat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('survivor.id'))
-    week = db.Column(db.Integer)  # FIXED: Removed 'code='
+    week = db.Column(db.Integer)
     survived = db.Column(db.Boolean, default=False)
     immunity = db.Column(db.Boolean, default=False)
     reward = db.Column(db.Boolean, default=False)
@@ -118,7 +118,6 @@ def sync_players():
             name = row.get('Name', '').strip()
             if not name: continue
             p = Survivor.query.filter_by(name=name).first()
-            # Clean slug generation
             slug_name = name.lower().replace(" ", "_").replace("'", "").replace("-", "_")
             if not p:
                 p = Survivor(name=name, points=0.0, slug=slug_name)
@@ -543,24 +542,22 @@ def nuke_and_pave():
     return "Database reset! <a href='/'>Go Home</a>"
 
 
-# --- MIGRATION PATCH ---
-def apply_migrations():
-    """Checks if the slug column exists and adds it if missing."""
-    with app.app_context():
+# --- MIGRATION & STARTUP BLOCK ---
+# This block runs during master process initialization (works in Gunicorn)
+with app.app_context():
+    db.create_all()
+    try:
+        # Check if the column exists
+        db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
+    except Exception:
+        db.session.rollback()
         try:
-            db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
-        except Exception:
-            db.session.rollback()
-            try:
-                db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
-                db.session.commit()
-                sync_players()
-            except Exception as e:
-                print(f"Migration Error: {e}")
-
+            # Inject column if missing
+            db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
+            db.session.commit()
+            sync_players()
+        except Exception as e:
+            print(f"Startup Migration Error: {e}")
 
 if __name__ == '__main__':
-    apply_migrations()
-    with app.app_context():
-        db.create_all()
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
