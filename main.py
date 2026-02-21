@@ -57,7 +57,7 @@ class WeeklyStat(db.Model):
     reward = db.Column(db.Boolean, default=False)
     advantage = db.Column(db.Boolean, default=False)
     journey = db.Column(db.Boolean, default=False)
-    in_pocket = db.Column(db.Boolean, default=False) # NEW: Advantage/Idol in Pocket
+    in_pocket = db.Column(db.Boolean, default=False)
     merge = db.Column(db.Boolean, default=False)
     f5 = db.Column(db.Boolean, default=False)
     f3 = db.Column(db.Boolean, default=False)
@@ -70,7 +70,7 @@ class WeeklyStat(db.Model):
         mapping = {
             "survive_episode": self.survived, "win_immunity": self.immunity,
             "win_reward": self.reward, "found_advantage": self.advantage,
-            "went_on_journey": self.journey, "in_pocket": self.in_pocket, # MAPPED
+            "went_on_journey": self.journey, "in_pocket": self.in_pocket,
             "made_merge": self.merge, "final_five": self.f5,
             "final_three": self.f3, "winner": self.winner,
             "confessional_cry": self.crying, "quit_game": self.quit
@@ -146,7 +146,7 @@ def calculate_roster_score(roster, pts_config):
 # --- ROUTES ---
 
 @app.route('/')
-def home():
+def index(): # FIXED: Changed from 'home' to 'index' to resolve BuildError
     all_cast = Survivor.query.all()
     leagues = []
     user_in_global = False
@@ -173,7 +173,7 @@ def signup():
         try:
             db.session.add(new_u); db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
-            return redirect(url_for('home'))
+            return redirect(url_for('index'))
         except:
             db.session.rollback(); flash("Username/Email already exists.")
     return render_template('signup.html')
@@ -184,13 +184,13 @@ def login():
         u = User.query.filter((User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
-            return redirect(url_for('home'))
+            return redirect(url_for('index'))
         flash("Invalid credentials.", "danger")
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.clear(); return redirect(url_for('home'))
+    session.clear(); return redirect(url_for('index'))
 
 # --- PASSWORD RECOVERY ---
 
@@ -268,7 +268,7 @@ def join_league():
             db.session.add(Roster(league_id=l.id, user_id=session['user_id']))
             db.session.commit()
         return redirect(url_for('league_dashboard', code=l.invite_code))
-    flash("League not found.", "danger"); return redirect(url_for('home'))
+    flash("League not found.", "danger"); return redirect(url_for('index'))
 
 @app.route('/league/<code>')
 def league_dashboard(code):
@@ -341,15 +341,13 @@ def save_global_draft():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # NEW: Safety check to ensure the user actually exists in the DB
     user_exists = db.session.get(User, session['user_id'])
     if not user_exists:
-        session.clear()  # Wipe the "ghost" session
+        session.clear()
         flash("Session expired or user not found. Please log in again.", "danger")
         return redirect(url_for('login'))
 
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'],
-                                                                                             is_global=True)
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'], is_global=True)
     if not r.id:
         db.session.add(r)
 
@@ -397,7 +395,7 @@ def admin_scoring():
                     reward=request.form.get(f'rew_{s.id}') == 'on',
                     advantage=request.form.get(f'adv_{s.id}') == 'on',
                     journey=request.form.get(f'jour_{s.id}') == 'on',
-                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on', # PROCESSING POCKET STAT
+                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on',
                     crying=request.form.get(f'cry_{s.id}') == 'on'
                 )
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
@@ -414,24 +412,20 @@ def robots():
 
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
-    """Generate sitemap.xml dynamically."""
     pages = []
-
-    # Update these strings to match the EXACT function names in your main.py
-    # If your home page is '@app.route("/") def home():', use 'home'
-    main_functions = ['global_leaderboard', 'login']
+    # FIXED: Uses 'index' instead of 'home'
+    main_functions = ['index', 'global_leaderboard', 'login']
 
     for func in main_functions:
         try:
             pages.append({
                 "loc": url_for(func, _external=True),
                 "lastmod": "2026-02-20",
-                "priority": "1.0" if func == 'global_leaderboard' else "0.8"
+                "priority": "1.0" if func == 'index' else "0.8"
             })
         except Exception as e:
             print(f"Skipping {func}: {e}")
 
-    # Dynamic Player Profiles
     try:
         players = Survivor.query.all()
         for p in players:
@@ -458,13 +452,10 @@ def draft_trends():
     stats_list = []
 
     for s in all_survivors:
-        # Count occurrences in different slots
         gold_picks = Roster.query.filter_by(cap1_id=s.id).count()
         silver_picks = Roster.query.filter_by(cap2_id=s.id).count()
         bronze_picks = Roster.query.filter_by(cap3_id=s.id).count()
 
-        # Count occurrences in the 'regular_ids' comma-separated string
-        # We use a LIKE filter to find the ID surrounded by commas or at the ends
         reg_picks = Roster.query.filter(
             (Roster.regular_ids == str(s.id)) |
             (Roster.regular_ids.like(f"{s.id},%")) |
@@ -483,9 +474,7 @@ def draft_trends():
             'regular_picks': reg_picks
         })
 
-    # Sort by most selected overall
     stats_list = sorted(stats_list, key=lambda x: x['total_pct'], reverse=True)
-
     return render_template('trends.html', stats=stats_list, total_users=total_rosters)
 
 
