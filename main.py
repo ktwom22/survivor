@@ -335,15 +335,37 @@ def global_draft_page():
     available = Survivor.query.filter_by(is_out=False).all()
     return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG, get_roster_data=get_roster_data)
 
+
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'], is_global=True)
-    if not r.id: db.session.add(r)
-    r.cap1_id, r.cap2_id, r.cap3_id = int(request.form.get('cap1')), int(request.form.get('cap2')), int(request.form.get('cap3'))
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # NEW: Safety check to ensure the user actually exists in the DB
+    user_exists = db.session.get(User, session['user_id'])
+    if not user_exists:
+        session.clear()  # Wipe the "ghost" session
+        flash("Session expired or user not found. Please log in again.", "danger")
+        return redirect(url_for('login'))
+
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'],
+                                                                                             is_global=True)
+    if not r.id:
+        db.session.add(r)
+
+    r.cap1_id = int(request.form.get('cap1'))
+    r.cap2_id = int(request.form.get('cap2'))
+    r.cap3_id = int(request.form.get('cap3'))
     r.regular_ids = ",".join(request.form.getlist('regs'))
-    db.session.commit(); flash("Global Tribe saved!", "success")
-    return redirect(url_for('home'))
+
+    try:
+        db.session.commit()
+        flash("Global Tribe saved!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Error saving draft. Please try again.", "danger")
+
+    return redirect(url_for('index'))
 
 # --- PROFILES & ADMIN ---
 
