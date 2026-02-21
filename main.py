@@ -360,42 +360,40 @@ def join_global():
 
 @app.route('/global-leaderboard')
 def global_leaderboard():
-    # Ensure user is logged in
     if 'user_id' not in session:
         flash("Please log in to view the Global Standings.", "info")
         return redirect(url_for('login'))
 
-    # 1. Get ALL global rosters
     global_rosters = Roster.query.filter_by(is_global=True).all()
 
-    # 2. Build the leaderboard list with calculated scores
+    # This list must match the "p.user" and "p.score" used in your template
     lb = []
     for r in global_rosters:
         if r.owner:
             lb.append({
-                'username': r.owner.username,
-                'score': calculate_roster_score(r, POINTS_CONFIG),
-                'roster_data': get_roster_data(r)  # We'll use this to show players on the page
+                'user': r.owner.username,
+                'score': calculate_roster_score(r, POINTS_CONFIG)
             })
 
-    # 3. Sort by high score
     lb = sorted(lb, key=lambda x: x['score'], reverse=True)
 
-    # 4. Handle "View Specific Roster" logic
-    # If the user clicks a specific name, we pull that person's data
-    view_username = request.args.get('view_user', session['username'])
+    # Roster Viewing Logic
+    view_username = request.args.get('view_user', session.get('username'))
     target_user = User.query.filter_by(username=view_username).first()
 
-    target_tribe_data = None
+    my_tribe_data = None
+    display_name = "Unknown Tribe"
+
     if target_user:
         target_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
         if target_roster:
-            target_tribe_data = get_roster_data(target_roster)
+            my_tribe_data = get_roster_data(target_roster)
+            display_name = f"{target_user.username}'s Tribe"
 
     return render_template('global_standings.html',
-                           leaderboard=lb,
-                           target_tribe=target_tribe_data,
-                           view_username=view_username)
+                           full_global_leaderboard=lb,  # Name must match template
+                           my_tribe=my_tribe_data,
+                           display_name=display_name)
 
 
 @app.route('/global/draft')
