@@ -146,7 +146,7 @@ def calculate_roster_score(roster, pts_config):
 # --- ROUTES ---
 
 @app.route('/')
-def home():
+def index():
     all_cast = Survivor.query.all()
     leagues = []
     user_in_global = False
@@ -395,24 +395,31 @@ def sitemap():
     """Generate sitemap.xml dynamically."""
     pages = []
 
-    # 1. Static Pages (Home, Global, Login)
-    # Using _external=True forces the full URL (https://yourdomain.com/...)
-    for rule in ['index', 'global_leaderboard', 'login']:
-        pages.append({
-            "loc": url_for(rule, _external=True),
-            "lastmod": "2026-02-20",
-            "priority": "1.0" if rule == 'index' else "0.8"
-        })
+    # Update these strings to match the EXACT function names in your main.py
+    # If your home page is '@app.route("/") def home():', use 'home'
+    main_functions = ['global_leaderboard', 'login']
 
-    # 2. Dynamic Player Profiles
-    # This automatically adds EVERY player in your database to Google
-    players = Survivor.query.all()
-    for p in players:
-        pages.append({
-            "loc": url_for('player_profile', player_id=p.id, _external=True),
-            "lastmod": "2026-02-20",
-            "priority": "0.7"
-        })
+    for func in main_functions:
+        try:
+            pages.append({
+                "loc": url_for(func, _external=True),
+                "lastmod": "2026-02-20",
+                "priority": "1.0" if func == 'global_leaderboard' else "0.8"
+            })
+        except Exception as e:
+            print(f"Skipping {func}: {e}")
+
+    # Dynamic Player Profiles
+    try:
+        players = Survivor.query.all()
+        for p in players:
+            pages.append({
+                "loc": url_for('player_profile', player_id=p.id, _external=True),
+                "lastmod": "2026-02-20",
+                "priority": "0.7"
+            })
+    except Exception as e:
+        print(f"Error loading players for sitemap: {e}")
 
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     return Response(sitemap_xml, mimetype='application/xml')
