@@ -26,7 +26,7 @@
                                 <p class="lead text-white-50 fw-bold uppercase ls-1 mt-2">Season: {{ p.season }}</p>
                             </div>
                             <div class="text-end">
-                                <div class="x-small fw-900 text-white-50 uppercase">Current Points</div>
+                                <div class="x-small fw-900 text-white-50 uppercase">Total Points</div>
                                 <div class="display-4 fw-900 text-accent">{{ totals.score|round(1) }}</div>
                             </div>
                         </div>
@@ -40,7 +40,7 @@
                     </div>
 
                     <div class="row g-2 mt-4">
-                        {% for label, val in [('Survived', totals.surv), ('Immunity', totals.imm), ('Advantages', totals.adv), ('Cries', totals.cry)] %}
+                        {% for label, val in [('Survived', totals.surv), ('Immunity', totals.imm), ('JRN', p.stats|selectattr('journey')|list|length), ('Cry', p.stats|selectattr('crying')|list|length)] %}
                         <div class="col">
                             <div class="border border-secondary p-2 text-center rounded bg-dark-hover transition">
                                 <div class="x-small fw-900 text-white-50 uppercase" style="font-size: 0.55rem;">{{ label }}</div>
@@ -56,18 +56,20 @@
         <div class="pro-card p-0 border-secondary overflow-hidden">
             <div class="p-3 bg-dark d-flex justify-content-between align-items-center">
                 <h6 class="fw-900 m-0 text-uppercase ls-2">Weekly Performance Log</h6>
-                <span class="badge bg-black border border-secondary text-white-50 uppercase small">Checklist Tracker</span>
+                <span class="badge bg-black border border-secondary text-white-50 uppercase small">Season Log</span>
             </div>
             <div class="table-responsive">
                 <table class="table table-dark table-hover m-0 align-middle text-center border-top border-secondary">
                     <thead class="bg-black text-muted x-small uppercase">
                         <tr>
                             <th class="text-start ps-4 py-3">Week</th>
-                            <th>Survive</th>
-                            <th>Immunity</th>
-                            <th>Advantage</th>
+                            <th>Surv</th>
+                            <th>Imm</th>
+                            <th>Adv+</th>
+                            <th>JRN</th>
+                            <th class="text-warning">PKT</th>
                             <th>😭 Cry</th>
-                            <th>Endgame</th>
+                            <th>Milestone</th>
                             <th class="bg-dark text-white fw-900">Points</th>
                         </tr>
                     </thead>
@@ -76,17 +78,22 @@
                         <tr>
                             <td class="text-start ps-4 fw-900 uppercase">Week {{ s.week }}</td>
                             <td>{{ "✅" if s.survived else "—" }}</td>
-                            <td>{{ "✅" if s.immunity else "—" }}</td>
-                            <td>{{ "✅" if s.advantage else "—" }}</td>
-                            <td>{{ "✅" if s.crying else "—" }}</td>
+                            <td>{{ "🏆" if s.immunity else "—" }}</td>
+                            <td>{{ "⭐" if s.advantage else "—" }}</td>
+                            <td>{{ "🎒" if s.journey else "—" }}</td>
+                            <td class="text-warning">{{ "⚠️" if s.in_pocket else "—" }}</td>
+                            <td>{{ "💧" if s.crying else "—" }}</td>
                             <td>
                                 {% if s.winner %}<span class="badge bg-success">WINNER</span>
                                 {% elif s.f3 %}<span class="badge bg-info text-dark">FINAL 3</span>
                                 {% elif s.f5 %}<span class="badge bg-warning text-dark">FINAL 5</span>
                                 {% elif s.merge %}<span class="badge bg-secondary">MERGE</span>
+                                {% elif s.quit %}<span class="badge bg-danger">QUIT</span>
                                 {% else %}—{% endif %}
                             </td>
-                            <td class="bg-dark text-accent fw-900">+{{ s.week_total|round(1) }}</td>
+                            <td class="bg-dark text-accent fw-900">
+                                {{ s.calculate_for_league(config)|round(1) }}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -107,6 +114,8 @@
     .bg-dark-hover:hover { background: #111; border-color: var(--accent) !important; }
     .transition { transition: all 0.3s ease; }
     .lh-1 { line-height: 1; }
+    .table-responsive::-webkit-scrollbar { height: 6px; }
+    .table-responsive::-webkit-scrollbar-thumb { background: var(--accent); }
 </style>
 
 {% endblock %}
