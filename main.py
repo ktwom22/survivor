@@ -57,7 +57,7 @@ class Survivor(db.Model):
 class WeeklyStat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('survivor.id'))
-    week = db.Column(code=db.Integer)
+    week = db.Column(db.Integer)  # FIXED: Removed 'code='
     survived = db.Column(db.Boolean, default=False)
     immunity = db.Column(db.Boolean, default=False)
     reward = db.Column(db.Boolean, default=False)
@@ -118,6 +118,7 @@ def sync_players():
             name = row.get('Name', '').strip()
             if not name: continue
             p = Survivor.query.filter_by(name=name).first()
+            # Clean slug generation
             slug_name = name.lower().replace(" ", "_").replace("'", "").replace("-", "_")
             if not p:
                 p = Survivor(name=name, points=0.0, slug=slug_name)
@@ -418,7 +419,7 @@ def save_global_draft():
     return redirect(url_for('index'))
 
 
-# --- PLAYER PROFILES (SLUG SUPPORT) ---
+# --- PLAYER PROFILES ---
 @app.route('/player/<string:slug>')
 def player_profile(slug):
     if slug.isdigit():
@@ -547,16 +548,13 @@ def apply_migrations():
     """Checks if the slug column exists and adds it if missing."""
     with app.app_context():
         try:
-            # Check column existence
             db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
         except Exception:
             db.session.rollback()
-            print("Migration: Adding 'slug' column to survivor table...")
             try:
                 db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
                 db.session.commit()
-                print("Migration: Slug column added successfully.")
-                sync_players() # Populate slugs for existing players
+                sync_players()
             except Exception as e:
                 print(f"Migration Error: {e}")
 
