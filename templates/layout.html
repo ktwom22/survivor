@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-GNCEJJSP65"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-GNCEJJSP65');
     </script>
 
@@ -37,8 +35,8 @@
         :root {
             --bg: #000000;
             --accent: #ffcc00;
-            --border: #334155; /* High contrast slate border */
-            --card-bg: #0a0a0a;
+            --border: #ffffff; /* Shifted from slate to Pure White for maximum pop */
+            --card-bg: #000000; /* Deep black cards */
             --text-high: #ffffff;
             --text-accent: #ffcc00;
         }
@@ -56,7 +54,7 @@
         /* Fixed Navigation */
         .nav-custom {
             background: #000000;
-            border-bottom: 3px solid var(--accent);
+            border-bottom: 4px solid var(--accent); /* Thicker accent line */
             padding: 12px 0;
             position: sticky;
             top: 0;
@@ -66,15 +64,17 @@
         /* MAX CONTRAST CARDS */
         .pro-card {
             background: var(--card-bg);
-            border: 2px solid var(--border); /* Thicker border */
-            border-radius: 8px;
+            border: 2px solid var(--border); /* White border on black */
+            border-radius: 0px; /* Sharper, more aggressive look */
             padding: 20px;
             margin-bottom: 12px;
-            transition: border-color 0.2s ease;
+            transition: all 0.2s ease;
         }
 
         .pro-card:hover {
             border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
         }
 
         /* Utility Classes */
@@ -84,42 +84,51 @@
         .ls-2 { letter-spacing: 2px; }
         .text-accent { color: var(--text-accent) !important; }
 
+        /* Force any grey text to White */
+        .text-white-50, .text-muted, .small { color: #ffffff !important; opacity: 1 !important; }
+
         /* Form Contrast Fixes */
         label {
-            color: var(--text-high) !important;
+            color: var(--text-accent) !important; /* Labels now Gold for visibility */
             font-weight: 900;
             text-transform: uppercase;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             display: block;
+            letter-spacing: 1px;
         }
 
         .form-control {
-            background-color: #111 !important;
-            border: 2px solid var(--border) !important;
+            background-color: #000 !important;
+            border: 2px solid #ffffff !important; /* Pure white input borders */
             color: #fff !important;
             padding: 12px;
+            border-radius: 0px;
+            font-weight: 900;
         }
 
         .form-control:focus {
             border-color: var(--accent) !important;
-            box-shadow: 0 0 0 0.25rem rgba(255, 204, 0, 0.2);
+            box-shadow: 0 0 0 0.25rem rgba(255, 204, 0, 0.4);
         }
 
         /* Bootstrap Modal High Contrast */
-        .modal-backdrop { z-index: 1040 !important; }
+        .modal-backdrop { z-index: 1040 !important; opacity: 0.9 !important; }
         .modal { z-index: 1050 !important; }
         .modal-content {
             background-color: #000 !important;
-            border: 2px solid var(--accent) !important;
+            border: 3px solid var(--accent) !important;
             color: #fff !important;
+            border-radius: 0px;
         }
 
         /* Flash Message Styling */
         .alert-accent {
-            border: 3px solid var(--accent);
+            border: 4px solid var(--accent);
             color: #000;
             background: var(--accent);
             font-weight: 900;
+            border-radius: 0px;
+            text-transform: uppercase;
         }
 
         /* Mobile specific adjustments */
@@ -129,25 +138,34 @@
             .btn-mobile-stack { width: 100%; margin-bottom: 8px; }
         }
 
-        /* Custom Scrollbar - Made more visible */
-        ::-webkit-scrollbar { width: 10px; }
+        /* Custom Scrollbar - High Contrast White/Gold */
+        ::-webkit-scrollbar { width: 12px; }
         ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; border: 2px solid #000; }
+        ::-webkit-scrollbar-thumb {
+            background: #ffffff;
+            border: 3px solid #000000;
+        }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* Secondary Buttons Pop */
+        .btn-outline-light {
+            border: 2px solid #ffffff !important;
+            font-weight: 900 !important;
+        }
     </style>
 </head>
 <body>
 
     <nav class="navbar navbar-dark nav-custom mb-3 mb-md-4">
         <div class="container d-flex justify-content-between align-items-center">
-            <a class="navbar-brand fw-900 fs-4 m-0 uppercase ls-2" href="/">
+            <a class="navbar-brand fw-900 fs-3 m-0 uppercase ls-2" href="/">
                 DROP<span class="text-accent">BUFFS</span>
             </a>
 
             <div class="d-flex gap-2">
                 {% if session.user_id %}
-                    <a href="/" class="btn btn-dark btn-sm fw-900 uppercase ls-1 border-light d-none d-sm-inline-block">Home</a>
-                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-900 uppercase ls-1" style="border-width: 2px;">Logout</a>
+                    <a href="/" class="btn btn-dark btn-sm fw-900 uppercase ls-1 border-light d-none d-sm-inline-block" style="border-width: 2px;">Home</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-900 uppercase ls-1" style="border-width: 2px; color: #ff4444; border-color: #ff4444 !important;">Logout</a>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="btn btn-accent btn-sm fw-900 uppercase ls-1 text-dark">Login</a>
                 {% endif %}
@@ -170,7 +188,9 @@
     </div>
 
     <div class="py-5 text-center">
-        <p class="text-accent fw-900 x-small uppercase ls-2">Drop Buffs &copy; 2026 | Fan Project for CBS Survivor</p>
+        <hr class="border-light opacity-100 mb-4" style="border-width: 2px;">
+        <p class="text-accent fw-900 small uppercase ls-2">Drop Buffs &copy; 2026</p>
+        <p class="text-white fw-900 x-small uppercase ls-1">The Ultimate Survivor Fantasy Experience</p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
