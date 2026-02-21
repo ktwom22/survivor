@@ -312,29 +312,43 @@ def join_global():
 
     return redirect(url_for('global_draft_page'))
 
-# RENAMED TO SATISFY YOUR home.html LINK
+
 @app.route('/global-leaderboard')
 def global_leaderboard():
-    # 1. Get all global rosters for the standings
+    # 1. Get all global rosters for the standings leaderboard
     global_rosters = Roster.query.filter_by(is_global=True).all()
     lb = sorted(
         [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
          r.owner], key=lambda x: x['score'], reverse=True)
 
-    # 2. Specifically find the logged-in user's roster to display at the top
-    my_global_roster = None
-    my_tribe_data = None
-    if 'user_id' in session:
-        my_global_roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
-        if my_global_roster:
-            # This uses your helper to get the actual Survivor objects (names, images)
-            my_tribe_data = get_roster_data(my_global_roster)
+    # 2. Determine which user's tribe to display
+    # We check the URL for 'view_user' (e.g., /global-leaderboard?view_user=JeffProbst)
+    view_username = request.args.get('view_user')
 
+    # Default behavior: If no view_user is specified, show the logged-in user's tribe
+    if not view_username and 'username' in session:
+        view_username = session['username']
+
+    target_tribe_data = None
+    display_name = "Global Tribe"
+
+    if view_username:
+        # Look up the user by the username provided
+        target_user = User.query.filter_by(username=view_username).first()
+        if target_user:
+            # Find the global roster belonging to that specific user
+            display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
+            if display_roster:
+                # Use your helper to get Survivor objects (names, images, etc.)
+                target_tribe_data = get_roster_data(display_roster)
+                display_name = f"{target_user.username}'s Tribe"
+
+    # 3. Return the template with the specific tribe data and the full leaderboard
     return render_template('global_standings.html',
                            full_global_leaderboard=lb,
                            total_global_entrants=len(lb),
-                           my_tribe=my_tribe_data)  # This sends your players to the HTML
-
+                           my_tribe=target_tribe_data,
+                           display_name=display_name)
 
 @app.route('/global/draft')
 def global_draft_page():
