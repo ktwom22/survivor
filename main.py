@@ -110,11 +110,12 @@ def sync_players():
             if not name: continue
             p = Survivor.query.filter_by(name=name).first()
             if not p:
-                p = Survivor(name=name)
+                p = Survivor(name=name, points=0.0) # PATCH: Ensure 0.0 points for new players
                 db.session.add(p)
             p.image_url = row.get('Image Link', '').strip()
             p.season = row.get('What Season?', '').strip()
             p.details = row.get('Details', '').strip()
+            if p.points is None: p.points = 0.0 # PATCH: Repair existing Null points
         db.session.commit()
     except Exception as e:
         print(f"Sync error: {e}")
@@ -333,7 +334,6 @@ def join_global():
 
 @app.route('/global-leaderboard')
 def global_leaderboard():
-    # 1. Safety Check: If no user is logged in, redirect to login page
     if 'user_id' not in session or 'username' not in session:
         flash("Please log in to view the Global Standings.", "info")
         return redirect(url_for('login'))
@@ -353,7 +353,6 @@ def global_leaderboard():
         display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
         if display_roster:
             target_tribe_data = get_roster_data(display_roster)
-            # This is the line that matches your HTML logic
             display_name = f"{target_user.username}'s Tribe"
 
     return render_template('global_standings.html',
@@ -432,11 +431,12 @@ def admin_scoring():
                     in_pocket=request.form.get(f'pocket_{s.id}') == 'on',
                     crying=request.form.get(f'cry_{s.id}') == 'on'
                 )
+                if s.points is None: s.points = 0.0 # PATCH: Safety against None points
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
             db.session.commit(); flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
-    return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
+    return render_template('admin_login.html' if not session.get('admin_authenticated') else 'admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
 
 
 @app.route('/robots.txt')
@@ -447,7 +447,6 @@ def robots():
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
     pages = []
-    # FIXED: Uses 'index' instead of 'home'
     main_functions = ['index', 'global_leaderboard', 'login']
 
     for func in main_functions:
@@ -477,7 +476,6 @@ def sitemap():
 
 @app.route('/trends')
 def draft_trends():
-    # Only count rosters where at least the Gold Captain is set (meaning the draft was submitted)
     submitted_rosters = Roster.query.filter(Roster.cap1_id.isnot(None)).all()
     total_count = len(submitted_rosters)
 
@@ -489,14 +487,10 @@ def draft_trends():
     stats_list = []
 
     for s in all_survivors:
-        # We filter the already fetched submitted_rosters list for better performance
         gold_picks = sum(1 for r in submitted_rosters if r.cap1_id == s.id)
         silver_picks = sum(1 for r in submitted_rosters if r.cap2_id == s.id)
         bronze_picks = sum(1 for r in submitted_rosters if r.cap3_id == s.id)
-
-        # Check if ID is in the comma-separated regulars string
         reg_picks = sum(1 for r in submitted_rosters if r.regular_ids and str(s.id) in r.regular_ids.split(','))
-
         total_picks = gold_picks + silver_picks + bronze_picks + reg_picks
 
         if total_picks > 0:
@@ -509,9 +503,7 @@ def draft_trends():
                 'count': total_picks
             })
 
-    # Sort by popularity
     stats_list = sorted(stats_list, key=lambda x: x['total_pct'], reverse=True)
-
     return render_template('trends.html', stats=stats_list, total_users=total_count)
 
 
