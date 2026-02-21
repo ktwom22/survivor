@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
+from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
@@ -56,7 +57,7 @@ class Survivor(db.Model):
 class WeeklyStat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('survivor.id'))
-    week = db.Column(db.Integer)
+    week = db.Column(code=db.Integer)
     survived = db.Column(db.Boolean, default=False)
     immunity = db.Column(db.Boolean, default=False)
     reward = db.Column(db.Boolean, default=False)
@@ -117,11 +118,13 @@ def sync_players():
             name = row.get('Name', '').strip()
             if not name: continue
             p = Survivor.query.filter_by(name=name).first()
+            slug_name = name.lower().replace(" ", "_").replace("'", "").replace("-", "_")
             if not p:
-                # Generate slug for SEO: "Tony Vlachos" -> "tony_vlachos"
-                slug_name = name.lower().replace(" ", "_")
                 p = Survivor(name=name, points=0.0, slug=slug_name)
                 db.session.add(p)
+            else:
+                if not p.slug:
+                    p.slug = slug_name
             p.image_url = row.get('Image Link', '').strip()
             p.season = row.get('What Season?', '').strip()
             p.details = row.get('Details', '').strip()
@@ -186,12 +189,12 @@ def signup():
         hashed_pw = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         new_u = User(username=request.form.get('username'), email=request.form.get('email'), password=hashed_pw)
         try:
-            db.session.add(new_u);
+            db.session.add(new_u)
             db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
             return redirect(url_for('index'))
         except:
-            db.session.rollback();
+            db.session.rollback()
             flash("Username/Email already exists.")
     return render_template('signup.html')
 
@@ -210,7 +213,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.clear();
+    session.clear()
     return redirect(url_for('index'))
 
 
@@ -306,7 +309,7 @@ def join_league():
             db.session.add(Roster(league_id=l.id, user_id=session['user_id']))
             db.session.commit()
         return redirect(url_for('league_dashboard', code=l.invite_code))
-    flash("League not found.", "danger");
+    flash("League not found.", "danger")
     return redirect(url_for('index'))
 
 
@@ -337,7 +340,7 @@ def draft(code):
         regs = request.form.getlist('regs')
         r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
         r.regular_ids = ",".join(regs)
-        db.session.commit();
+        db.session.commit()
         flash("Draft saved!", "success")
     return redirect(url_for('league_dashboard', code=code))
 
@@ -349,7 +352,7 @@ def join_global():
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if not r:
         r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r);
+        db.session.add(r)
         db.session.commit()
         flash("Welcome to the Global Season! Time to draft your tribe.", "success")
     return redirect(url_for('global_draft_page'))
@@ -418,7 +421,6 @@ def save_global_draft():
 # --- PLAYER PROFILES (SLUG SUPPORT) ---
 @app.route('/player/<string:slug>')
 def player_profile(slug):
-    # Try slug first (SEO), fallback to ID if string is numeric for old links
     if slug.isdigit():
         p = Survivor.query.get_or_404(int(slug))
     else:
@@ -461,7 +463,7 @@ def admin_scoring():
                 if s.points is None: s.points = 0.0
                 s.points += stat.calculate_for_league(POINTS_CONFIG)
                 db.session.add(stat)
-            db.session.commit();
+            db.session.commit()
             flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_login.html' if not session.get('admin_authenticated') else 'admin_scoring.html',
@@ -473,7 +475,6 @@ def robots():
     return send_from_directory(app.static_folder, 'robots.txt')
 
 
-# --- SITEMAP (DYNAMIC LOOP) ---
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
     pages = []
@@ -493,7 +494,6 @@ def sitemap():
     try:
         players = Survivor.query.all()
         for p in players:
-            # Use slug if available, otherwise ID
             loc_val = url_for('player_profile', slug=(p.slug or p.id), _external=True)
             pages.append({
                 "loc": loc_val,
@@ -524,7 +524,7 @@ def draft_trends():
         total_picks = gold_picks + silver_picks + bronze_picks + reg_picks
         if total_picks > 0:
             stats_list.append({
-                'name': s.name, 'slug': s.slug,  # Added Slug
+                'name': s.name, 'slug': s.slug,
                 'image': s.image_url,
                 'total_pct': round((total_picks / total_count) * 100, 1),
                 'gold_pct': round((gold_picks / total_count) * 100, 1),
@@ -536,12 +536,33 @@ def draft_trends():
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
-    db.drop_all();
-    db.create_all();
+    db.drop_all()
+    db.create_all()
     sync_players()
     return "Database reset! <a href='/'>Go Home</a>"
 
 
+# --- MIGRATION PATCH ---
+def apply_migrations():
+    """Checks if the slug column exists and adds it if missing."""
+    with app.app_context():
+        try:
+            # Check column existence
+            db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            print("Migration: Adding 'slug' column to survivor table...")
+            try:
+                db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
+                db.session.commit()
+                print("Migration: Slug column added successfully.")
+                sync_players() # Populate slugs for existing players
+            except Exception as e:
+                print(f"Migration Error: {e}")
+
+
 if __name__ == '__main__':
-    with app.app_context(): db.create_all()
+    apply_migrations()
+    with app.app_context():
+        db.create_all()
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
