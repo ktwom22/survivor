@@ -360,27 +360,42 @@ def join_global():
 
 @app.route('/global-leaderboard')
 def global_leaderboard():
-    if 'user_id' not in session or 'username' not in session:
+    # Ensure user is logged in
+    if 'user_id' not in session:
         flash("Please log in to view the Global Standings.", "info")
         return redirect(url_for('login'))
+
+    # 1. Get ALL global rosters
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    lb = sorted(
-        [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
-         r.owner], key=lambda x: x['score'], reverse=True)
+
+    # 2. Build the leaderboard list with calculated scores
+    lb = []
+    for r in global_rosters:
+        if r.owner:
+            lb.append({
+                'username': r.owner.username,
+                'score': calculate_roster_score(r, POINTS_CONFIG),
+                'roster_data': get_roster_data(r)  # We'll use this to show players on the page
+            })
+
+    # 3. Sort by high score
+    lb = sorted(lb, key=lambda x: x['score'], reverse=True)
+
+    # 4. Handle "View Specific Roster" logic
+    # If the user clicks a specific name, we pull that person's data
     view_username = request.args.get('view_user', session['username'])
-    target_tribe_data = None
-    display_name = "Global Entry"
     target_user = User.query.filter_by(username=view_username).first()
+
+    target_tribe_data = None
     if target_user:
-        display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
-        if display_roster:
-            target_tribe_data = get_roster_data(display_roster)
-            display_name = f"{target_user.username}'s Tribe"
+        target_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
+        if target_roster:
+            target_tribe_data = get_roster_data(target_roster)
+
     return render_template('global_standings.html',
-                           full_global_leaderboard=lb,
-                           total_global_entrants=len(lb),
-                           my_tribe=target_tribe_data,
-                           display_name=display_name)
+                           leaderboard=lb,
+                           target_tribe=target_tribe_data,
+                           view_username=view_username)
 
 
 @app.route('/global/draft')
