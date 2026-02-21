@@ -27,8 +27,8 @@ db = SQLAlchemy(app)
 POINTS_CONFIG = {
     "survive_episode": 2.0, "win_immunity": 5.0, "win_reward": 2.0,
     "found_advantage": 4.0, "made_merge": 5.0, "final_five": 8.0,
-    "final_three": 12.0, "winner": 20.0, "confessional_cry": 2.0,
-    "advantage": 5.0, "journey": 3.0, "quit_game": -25.0
+    "final_three": 12.0, "winner": 20.0, "confessional_cry": -2.0,
+    "Pocket Advantage/Immunity": -5.0, "journey": 3.0, "quit_game": -25.0
 }
 
 # --- MODELS ---
