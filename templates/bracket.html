@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-5">
+        <h1 class="fw-900 text-accent uppercase ls-2">The World Bracket</h1>
+        <p class="text-white-50">Predict the trajectory of Season 50. Points are awarded progressively as the season unfolds.</p>
+    </div>
+
+    <form method="POST" class="row g-4">
+        <div class="col-12">
+            <div class="pro-card border-accent bg-black">
+                <h4 class="text-accent fw-900 uppercase small ls-2 mb-3">Phase 1: The Merge (5 PTS Each)</h4>
+                <p class="x-small text-white-50 mb-3">Select players you believe will survive the pre-merge and make the new tribe.</p>
+                <div class="row row-cols-2 row-cols-md-4 g-2">
+                    {% for s in available %}
+                    <div class="col">
+                        <div class="form-check p-0">
+                            <input type="checkbox" name="merge_picks" value="{{ s.id }}" id="m{{ s.id }}" class="btn-check" 
+                                   {% if bracket.merge_ids and s.id|string in bracket.merge_ids.split(',') %}checked{% endif %}>
+                            <label class="btn btn-outline-light w-100 x-small fw-bold uppercase" for="m{{ s.id }}">{{ s.name }}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="pro-card border-white bg-black h-100">
+                <h4 class="text-white fw-900 uppercase small ls-2 mb-3">Phase 2: Final Five (10 PTS Each)</h4>
+                <div class="row g-2">
+                    {% for i in range(5) %}
+                    <div class="col-12">
+                        <select name="f5_picks" class="form-control form-control-sm bg-black text-white border-secondary">
+                            <option value="">Select Finalist {{ i+1 }}</option>
+                            {% for s in available %}
+                            <option value="{{ s.id }}" {% if bracket.final_five_ids and bracket.final_five_ids.split(',')[i] == s.id|string %}selected{% endif %}>
+                                {{ s.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="pro-card border-accent bg-black h-100">
+                <h4 class="text-accent fw-900 uppercase small ls-2 mb-3">Phase 3: The Podium</h4>
+                
+                <label class="x-small text-warning mt-2">Sole Survivor (50 PTS)</label>
+                <select name="winner" class="form-control border-warning mb-3" required>
+                    <option value="">Select Winner</option>
+                    {% for s in available %}
+                    <option value="{{ s.id }}" {% if bracket.winner_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <label class="x-small text-info">Runner Up (20 PTS)</label>
+                <select name="runner_up" class="form-control border-info mb-3" required>
+                    <option value="">Select 2nd Place</option>
+                    {% for s in available %}
+                    <option value="{{ s.id }}" {% if bracket.runner_up_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <label class="x-small text-white">3rd Place (20 PTS)</label>
+                <select name="third_place" class="form-control border-white mb-3" required>
+                    <option value="">Select 3rd Place</option>
+                    {% for s in available %}
+                    <option value="{{ s.id }}" {% if bracket.third_place_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="col-12 text-center mt-4">
+            <button type="submit" class="btn btn-accent btn-lg px-5 fw-900 uppercase ls-2">Lock World Bracket 🔒</button>
+            <p class="x-small text-white-50 mt-3">Note: Brackets cannot be edited once the season premiere begins.</p>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* Styling for the checkbox "buttons" */
+    .btn-check:checked + .btn-outline-light {
+        background-color: var(--accent) !important;
+        color: #000 !important;
+        border-color: var(--accent) !important;
+    }
+    .x-small { font-size: 0.75rem; }
+</style>
+{% endblock %}
