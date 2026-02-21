@@ -327,7 +327,7 @@ def league_dashboard(code):
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
     return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r),
                            target_username=target_username, available=Survivor.query.filter_by(is_out=False).all(),
-                           league_pts=l_pts)
+                           league_pts=l_pts, get_roster_data=get_roster_data)
 
 
 @app.route('/draft/<code>', methods=['POST'])
@@ -365,8 +365,6 @@ def global_leaderboard():
         return redirect(url_for('login'))
 
     global_rosters = Roster.query.filter_by(is_global=True).all()
-
-    # This list must match the "p.user" and "p.score" used in your template
     lb = []
     for r in global_rosters:
         if r.owner:
@@ -376,8 +374,6 @@ def global_leaderboard():
             })
 
     lb = sorted(lb, key=lambda x: x['score'], reverse=True)
-
-    # Roster Viewing Logic
     view_username = request.args.get('view_user', session.get('username'))
     target_user = User.query.filter_by(username=view_username).first()
 
@@ -391,7 +387,7 @@ def global_leaderboard():
             display_name = f"{target_user.username}'s Tribe"
 
     return render_template('global_standings.html',
-                           full_global_leaderboard=lb,  # Name must match template
+                           full_global_leaderboard=lb,
                            my_tribe=my_tribe_data,
                            display_name=display_name)
 
@@ -507,7 +503,7 @@ def sitemap():
     try:
         players = Survivor.query.all()
         for p in players:
-            loc_val = url_for('player_profile', slug=(p.slug or p.id), _external=True)
+            loc_val = url_for('player_profile', slug=(p.slug or str(p.id)), _external=True)
             pages.append({
                 "loc": loc_val,
                 "lastmod": now,
@@ -556,16 +552,13 @@ def nuke_and_pave():
 
 
 # --- MIGRATION & STARTUP BLOCK ---
-# This block runs during master process initialization (works in Gunicorn)
 with app.app_context():
     db.create_all()
     try:
-        # Check if the column exists
         db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
     except Exception:
         db.session.rollback()
         try:
-            # Inject column if missing
             db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
             db.session.commit()
             sync_players()
