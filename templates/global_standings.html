@@ -32,7 +32,8 @@
             (my_tribe.cap3, 1.25, 'Sergeant', '#64748b')
         ] %}
             {% if cap %}
-            <a href="{{ url_for('player_profile', player_id=cap.id) }}" class="text-decoration-none mb-3 d-block">
+            {# FIXED: Changed player_id to slug to resolve BuildError #}
+            <a href="{{ url_for('player_profile', slug=cap.slug or cap.id|string) }}" class="text-decoration-none mb-3 d-block">
                 <div class="pro-card p-2 border-start global-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important; background: rgba(255,255,255,0.03);">
                     <div class="d-flex align-items-center">
                         <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 65px; height: 65px; object-fit: cover; object-position: top;">
@@ -61,7 +62,8 @@
         <div class="row g-2">
             {% for p in my_tribe.regs %}
             <div class="col-6 col-md-4">
-                <a href="{{ url_for('player_profile', player_id=p.id) }}" class="text-decoration-none h-100 d-block">
+                {# FIXED: Changed player_id to slug to resolve BuildError #}
+                <a href="{{ url_for('player_profile', slug=p.slug or p.id|string) }}" class="text-decoration-none h-100 d-block">
                     <div class="pro-card border-secondary p-0 overflow-hidden h-100 global-member-card">
                         <img src="{{ p.image_url }}" class="w-100" style="height: 100px; object-fit: cover; object-position: top;">
                         <div class="p-2 text-center bg-black">
