@@ -1,8 +1,13 @@
 {% extends "layout.html" %}
+
 {% block content %}
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://media-cldnry.s-nbcnews.com">
 
 <div class="row justify-content-center">
-    <div class="col-md-11 text-center py-4">
+    <main class="col-md-11 text-center py-4">
         <h1 class="display-3 fw-900 uppercase ls-2 mb-2" style="letter-spacing: 5px;">
             OUTWIT <span class="text-accent">OUTPLAY</span> OUTLAST
         </h1>
@@ -95,9 +100,9 @@
                     <h4 class="fw-900 uppercase ls-1 mb-4 text-white">Join / Create</h4>
 
                     <form action="{{ url_for('join_league') }}" method="POST" class="mb-4">
-                        <label class="x-small fw-900 uppercase text-white mb-2 d-block">Enter Invite Code</label>
+                        <label for="invite_code_input" class="x-small fw-900 uppercase text-white mb-2 d-block">Enter Invite Code</label>
                         <div class="input-group">
-                            <input type="text" name="invite_code" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="XXXXXX" required>
+                            <input type="text" id="invite_code_input" name="invite_code" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="XXXXXX" required>
                             <button class="btn btn-outline-light fw-900 px-4 border-2" type="submit">JOIN</button>
                         </div>
                     </form>
@@ -107,9 +112,9 @@
                     </div>
 
                     <form action="{{ url_for('create_league') }}" method="POST">
-                        <label class="x-small fw-900 uppercase text-accent mb-2 d-block">New League Name</label>
+                        <label for="league_name_input" class="x-small fw-900 uppercase text-accent mb-2 d-block">New League Name</label>
                         <div class="input-group">
-                            <input type="text" name="league_name" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="Island Kings" required>
+                            <input type="text" id="league_name_input" name="league_name" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="Island Kings" required>
                             <button class="btn btn-accent text-dark fw-900 px-4 border-0" type="submit">CREATE</button>
                         </div>
                     </form>
@@ -126,7 +131,12 @@
                          onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.slug or p.id }}`)">
 
                         <div class="cast-img-container">
-                            <img src="{{ p.image_url }}" alt="{{ p.name }}" class="cast-img">
+                            <img src="{{ p.image_url.replace('t_fit-760w', 't_fit-320w') }}"
+                                 alt="{{ p.name }}"
+                                 class="cast-img"
+                                 loading="lazy"
+                                 width="300"
+                                 height="300">
                             {% if p.is_out %}
                                 <div class="cast-out-overlay">VOTED OUT</div>
                             {% endif %}
@@ -140,15 +150,15 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
+    </main>
 </div>
 
 <div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
             <div class="modal-body p-0 position-relative">
-                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
-                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal" aria-label="Close"></button>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);" alt="Cast Member">
                 <div class="p-4 bg-black">
                     <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1"></h6>
                     <h2 id="modalName" class="fw-900 uppercase mb-3 text-white"></h2>
@@ -167,7 +177,7 @@
         <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
             <div class="modal-header border-secondary">
                 <h5 class="modal-title fw-900 uppercase">Scoring Rules</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center">
                 <div class="p-3 bg-darker border border-secondary rounded mb-3">
@@ -241,11 +251,12 @@
                 console.log('Share error', err);
             }
         } else {
-            // Fallback: Show the rules modal if sharing isn't supported
             const rulesModal = new bootstrap.Modal(document.getElementById('rulesModal'));
             rulesModal.show();
-            navigator.clipboard.writeText(window.location.origin);
-            alert("Site link copied to clipboard!");
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.origin);
+                alert("Site link copied to clipboard!");
+            }
         }
     }
 </script>
