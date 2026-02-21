@@ -330,6 +330,7 @@ def join_global():
         flash("Welcome to the Global Season! Time to draft your tribe.", "success")
     return redirect(url_for('global_draft_page'))
 
+
 @app.route('/global-leaderboard')
 def global_leaderboard():
     global_rosters = Roster.query.filter_by(is_global=True).all()
@@ -349,6 +350,7 @@ def global_leaderboard():
                 target_tribe_data = get_roster_data(display_roster)
                 display_name = f"{target_user.username}'s Tribe"
     return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb), my_tribe=target_tribe_data, display_name=display_name)
+
 
 @app.route('/global/draft')
 def global_draft_page():
