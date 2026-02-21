@@ -443,39 +443,42 @@ def sitemap():
 
 @app.route('/trends')
 def draft_trends():
+    # Only count rosters where at least the Gold Captain is set (meaning the draft was submitted)
+    submitted_rosters = Roster.query.filter(Roster.cap1_id.isnot(None)).all()
+    total_count = len(submitted_rosters)
+
+    if total_count == 0:
+        return render_template('trends.html', stats=[], total_users=0,
+                               error="No completed drafts found yet. Start drafting to see trends!")
+
     all_survivors = Survivor.query.all()
-    total_rosters = Roster.query.count()
-
-    if total_rosters == 0:
-        return "No drafts recorded yet."
-
     stats_list = []
 
     for s in all_survivors:
-        gold_picks = Roster.query.filter_by(cap1_id=s.id).count()
-        silver_picks = Roster.query.filter_by(cap2_id=s.id).count()
-        bronze_picks = Roster.query.filter_by(cap3_id=s.id).count()
+        # We filter the already fetched submitted_rosters list for better performance
+        gold_picks = sum(1 for r in submitted_rosters if r.cap1_id == s.id)
+        silver_picks = sum(1 for r in submitted_rosters if r.cap2_id == s.id)
+        bronze_picks = sum(1 for r in submitted_rosters if r.cap3_id == s.id)
 
-        reg_picks = Roster.query.filter(
-            (Roster.regular_ids == str(s.id)) |
-            (Roster.regular_ids.like(f"{s.id},%")) |
-            (Roster.regular_ids.like(f"%,{s.id}")) |
-            (Roster.regular_ids.like(f"%,{s.id},%"))
-        ).count()
+        # Check if ID is in the comma-separated regulars string
+        reg_picks = sum(1 for r in submitted_rosters if r.regular_ids and str(s.id) in r.regular_ids.split(','))
 
         total_picks = gold_picks + silver_picks + bronze_picks + reg_picks
 
-        stats_list.append({
-            'name': s.name,
-            'image': s.image_url,
-            'total_pct': round((total_picks / total_rosters) * 100, 1),
-            'captain_pct': round(((gold_picks + silver_picks + bronze_picks) / total_rosters) * 100, 1),
-            'gold_pct': round((gold_picks / total_rosters) * 100, 1),
-            'regular_picks': reg_picks
-        })
+        if total_picks > 0:
+            stats_list.append({
+                'name': s.name,
+                'image': s.image_url,
+                'total_pct': round((total_picks / total_count) * 100, 1),
+                'captain_pct': round(((gold_picks + silver_picks + bronze_picks) / total_count) * 100, 1),
+                'gold_pct': round((gold_picks / total_count) * 100, 1),
+                'count': total_picks
+            })
 
+    # Sort by popularity
     stats_list = sorted(stats_list, key=lambda x: x['total_pct'], reverse=True)
-    return render_template('trends.html', stats=stats_list, total_users=total_rosters)
+
+    return render_template('trends.html', stats=stats_list, total_users=total_count)
 
 
 @app.route('/nuke_and_pave')
