@@ -62,7 +62,8 @@
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (my_tribe.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
-                    <a href="{{ url_for('player_profile', player_id=cap.id) }}" class="text-decoration-none mb-3 d-block">
+                    {# FIXED: Changed player_id to slug #}
+                    <a href="{{ url_for('player_profile', slug=cap.slug or cap.id|string) }}" class="text-decoration-none mb-3 d-block">
                         <div class="pro-card p-2 border-start tribe-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
                             <div class="d-flex align-items-center">
                                 <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
@@ -85,7 +86,8 @@
             <div class="row g-2">
                 {% for p in my_tribe.regs %}
                 <div class="col-6 col-md-4">
-                    <a href="{{ url_for('player_profile', player_id=p.id) }}" class="text-decoration-none h-100 d-block">
+                    {# FIXED: Changed player_id to slug #}
+                    <a href="{{ url_for('player_profile', slug=p.slug or p.id|string) }}" class="text-decoration-none h-100 d-block">
                         <div class="pro-card border-secondary p-0 overflow-hidden h-100 tribe-member-card">
                             <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
                             <div class="p-2 text-center bg-black">
@@ -134,7 +136,7 @@
                         <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
-                                        onclick="showQuickLook(event, `{{ p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
+                                        onclick="showQuickLook(event, `{{ p.slug or p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
 
                                 <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
@@ -173,7 +175,6 @@
 <style>
     .tribe-member-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     .tribe-member-card:hover { transform: translateY(-5px); border-color: var(--accent) !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-
     .btn-info-pop {
         position: absolute; top: 5px; right: 5px; z-index: 50;
         background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.3);
@@ -182,15 +183,11 @@
         transition: 0.2s; cursor: pointer;
     }
     .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
-
     .player-card-label { border-radius: 6px; overflow: hidden; transition: 0.2s; border-color: rgba(255,255,255,0.1) !important; cursor: pointer; }
     .btn-check:checked + .player-card-label { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); transform: scale(0.96); }
-
     .btn-check:disabled + .player-card-label { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
-
     .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
     .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
-
     .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
     .hidden { display: none; }
     .rules-list::-webkit-scrollbar { width: 4px; }
@@ -198,7 +195,7 @@
 </style>
 
 <script>
-    function showQuickLook(event, id, name, img, season, details) {
+    function showQuickLook(event, slug, name, img, season, details) {
         if (event) { event.preventDefault(); event.stopPropagation(); }
         const modalEl = document.getElementById('quickLookModal');
         document.getElementById('modalName').innerText = name;
@@ -206,8 +203,8 @@
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
 
-        // Update the link to the player's unique profile page
-        document.getElementById('modalProfileLink').href = "/player/" + id;
+        // FIXED: Updated to use slug for the season stats link
+        document.getElementById('modalProfileLink').href = "/player/" + slug;
 
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
