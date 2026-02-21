@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-5">
+        <h1 class="fw-900 uppercase text-accent display-5">Draft Analytics</h1>
+        <p class="text-white-50">Based on {{ total_users }} active tribes</p>
+    </div>
+
+    <div class="row g-3">
+        {% for s in stats %}
+        <div class="col-12 col-md-6">
+            <div class="pro-card border-secondary d-flex align-items-center p-3">
+                <img src="{{ s.image }}" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                
+                <div class="flex-grow-1 ms-3">
+                    <h5 class="fw-900 m-0 uppercase text-white">{{ s.name }}</h5>
+                    <div class="progress bg-black border border-secondary mt-2" style="height: 8px;">
+                        <div class="progress-bar bg-accent" style="width: {{ s.total_pct }}%"></div>
+                    </div>
+                </div>
+
+                <div class="text-end ms-3">
+                    <div class="x-small fw-900 text-white-50 uppercase">Ownership</div>
+                    <div class="fw-900 fs-4 text-accent">{{ s.total_pct }}%</div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between px-3 py-2 bg-black-50 border-start border-end border-bottom border-secondary rounded-bottom">
+                <span class="x-small text-white-50 uppercase">As Gold Captain: <strong>{{ s.gold_pct }}%</strong></span>
+                <span class="x-small text-white-50 uppercase">Any Captain: <strong>{{ s.captain_pct }}%</strong></span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .bg-black-50 { background: rgba(0,0,0,0.5); }
+    .progress-bar { transition: width 1s ease-in-out; }
+</style>
+{% endblock %}

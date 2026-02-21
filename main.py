@@ -425,6 +425,48 @@ def sitemap():
     return Response(sitemap_xml, mimetype='application/xml')
 
 
+@app.route('/trends')
+def draft_trends():
+    all_survivors = Survivor.query.all()
+    total_rosters = Roster.query.count()
+
+    if total_rosters == 0:
+        return "No drafts recorded yet."
+
+    stats_list = []
+
+    for s in all_survivors:
+        # Count occurrences in different slots
+        gold_picks = Roster.query.filter_by(cap1_id=s.id).count()
+        silver_picks = Roster.query.filter_by(cap2_id=s.id).count()
+        bronze_picks = Roster.query.filter_by(cap3_id=s.id).count()
+
+        # Count occurrences in the 'regular_ids' comma-separated string
+        # We use a LIKE filter to find the ID surrounded by commas or at the ends
+        reg_picks = Roster.query.filter(
+            (Roster.regular_ids == str(s.id)) |
+            (Roster.regular_ids.like(f"{s.id},%")) |
+            (Roster.regular_ids.like(f"%,{s.id}")) |
+            (Roster.regular_ids.like(f"%,{s.id},%"))
+        ).count()
+
+        total_picks = gold_picks + silver_picks + bronze_picks + reg_picks
+
+        stats_list.append({
+            'name': s.name,
+            'image': s.image_url,
+            'total_pct': round((total_picks / total_rosters) * 100, 1),
+            'captain_pct': round(((gold_picks + silver_picks + bronze_picks) / total_rosters) * 100, 1),
+            'gold_pct': round((gold_picks / total_rosters) * 100, 1),
+            'regular_picks': reg_picks
+        })
+
+    # Sort by most selected overall
+    stats_list = sorted(stats_list, key=lambda x: x['total_pct'], reverse=True)
+
+    return render_template('trends.html', stats=stats_list, total_users=total_rosters)
+
+
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
     db.drop_all(); db.create_all(); sync_players()
