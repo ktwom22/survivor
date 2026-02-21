@@ -146,7 +146,7 @@ def calculate_roster_score(roster, pts_config):
 # --- ROUTES ---
 
 @app.route('/')
-def index():
+def home():
     all_cast = Survivor.query.all()
     leagues = []
     user_in_global = False
