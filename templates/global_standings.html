@@ -7,8 +7,8 @@
 </div>
 
 {% if my_tribe %}
-<div class="pro-card border-accent mb-5 bg-black">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="pro-card border-accent mb-5 bg-black p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
         <div>
             <h4 class="fw-900 text-accent uppercase m-0 ls-1">Viewing: <span class="text-white">{{ display_name }}</span></h4>
 
@@ -20,38 +20,56 @@
         </div>
 
         {% if display_name == session.username + "'s Tribe" or display_name == "Your Global Entry" %}
-            <a href="{{ url_for('global_draft_page') }}" class="btn btn-sm btn-accent fw-900 uppercase ls-1">Edit Draft</a>
+            <a href="{{ url_for('global_draft_page') }}" class="btn btn-sm btn-accent fw-900 uppercase ls-1">Edit Global Draft</a>
         {% endif %}
     </div>
 
-    <div class="row g-3 text-center">
-        <div class="col-4">
-            <span class="d-block text-white fw-900 x-small uppercase ls-1 mb-1">Captain (2x)</span>
-            <div class="p-3 border border-white">
-                <span class="text-accent fw-900 uppercase">{{ my_tribe.cap1.name if my_tribe.cap1 else 'EMPTY' }}</span>
+    <div class="tribe-stack mb-4">
+        {% for cap, mult, label, color in [
+            (my_tribe.cap1, 2.0, 'Global Captain', 'var(--accent)'),
+            (my_tribe.cap2, 1.5, 'Lieutenant', '#ffffff'),
+            (my_tribe.cap3, 1.25, 'Sergeant', '#64748b')
+        ] %}
+            {% if cap %}
+            <a href="{{ url_for('player_profile', player_id=cap.id) }}" class="text-decoration-none mb-3 d-block">
+                <div class="pro-card p-2 border-start global-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important; background: rgba(255,255,255,0.03);">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 65px; height: 65px; object-fit: cover; object-position: top;">
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
+                            <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
+                            <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points }} Base Pts</div>
+                        </div>
+                        <div class="text-end pe-2">
+                            <div class="x-small fw-900 text-white-50">SCORE</div>
+                            <div class="fw-900 fs-4 text-white">{{ (cap.points * mult)|round(1) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+            {% else %}
+            <div class="pro-card p-3 border-secondary border-dashed mb-2 text-center text-white-50 small uppercase fw-900">
+                Empty {{ label }} Slot
             </div>
-        </div>
-        <div class="col-4">
-            <span class="d-block text-white fw-900 x-small uppercase ls-1 mb-1">Lieutenant (1.5x)</span>
-            <div class="p-3 border border-white">
-                <span class="text-accent fw-900 uppercase">{{ my_tribe.cap2.name if my_tribe.cap2 else 'EMPTY' }}</span>
-            </div>
-        </div>
-        <div class="col-4">
-            <span class="d-block text-white fw-900 x-small uppercase ls-1 mb-1">Sergeant (1.25x)</span>
-            <div class="p-3 border border-white">
-                <span class="text-accent fw-900 uppercase">{{ my_tribe.cap3.name if my_tribe.cap3 else 'EMPTY' }}</span>
-            </div>
-        </div>
+            {% endif %}
+        {% endfor %}
     </div>
 
-    <div class="mt-4 pt-3 border-top border-white">
-        <span class="text-white fw-900 x-small uppercase ls-1 d-block mb-3">Squad Members:</span>
-        <div class="d-flex flex-wrap gap-2">
+    <div class="mt-4 pt-3 border-top border-secondary">
+        <span class="text-white fw-900 x-small uppercase ls-1 d-block mb-3">Squad Members (1.0x):</span>
+        <div class="row g-2">
             {% for p in my_tribe.regs %}
-                <span class="badge border border-white text-white fw-900 uppercase px-3 py-2 ls-1" style="background: rgba(255,255,255,0.1);">
-                    {{ p.name }}
-                </span>
+            <div class="col-6 col-md-4">
+                <a href="{{ url_for('player_profile', player_id=p.id) }}" class="text-decoration-none h-100 d-block">
+                    <div class="pro-card border-secondary p-0 overflow-hidden h-100 global-member-card">
+                        <img src="{{ p.image_url }}" class="w-100" style="height: 100px; object-fit: cover; object-position: top;">
+                        <div class="p-2 text-center bg-black">
+                            <div class="fw-900 uppercase text-truncate text-white" style="font-size: 0.7rem;">{{ p.name }}</div>
+                            <div class="text-accent fw-900" style="font-size: 0.65rem;">{{ p.points|round(1) }} PTS</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
             {% endfor %}
         </div>
     </div>
@@ -63,8 +81,8 @@
         <thead class="bg-black">
             <tr class="text-white fw-900 x-small uppercase ls-2">
                 <th class="ps-4 py-3">Rank</th>
-                <th class="py-3">Owner</th>
-                <th class="text-end pe-4 py-3">Points</th>
+                <th class="py-3">Global Contender</th>
+                <th class="text-end pe-4 py-3">Total Score</th>
             </tr>
         </thead>
         <tbody class="border-top-0">
@@ -79,7 +97,7 @@
                         <span class="ms-2 badge bg-accent text-dark">YOU</span>
                     {% endif %}
                 </td>
-                <td class="text-end pe-4 fw-900 fs-5 text-accent">{{ p.score }}</td>
+                <td class="text-end pe-4 fw-900 fs-5 text-accent">{{ p.score|round(1) }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -87,11 +105,14 @@
 </div>
 
 <style>
-    .bg-accent-soft { background: rgba(255, 204, 0, 0.2) !important; }
+    .global-member-card { transition: all 0.2s ease-in-out; }
+    .global-member-card:hover { transform: translateY(-3px); border-color: var(--accent) !important; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
+
+    .bg-accent-soft { background: rgba(255, 204, 0, 0.1) !important; }
     .border-y-accent { border-top: 2px solid var(--accent) !important; border-bottom: 2px solid var(--accent) !important; }
     .border-accent { border: 2px solid var(--accent) !important; }
+    .border-dashed { border-style: dashed !important; border-width: 2px !important; }
 
-    /* Hover effect for usernames */
     .user-link:hover {
         color: var(--accent) !important;
         border-color: white !important;
@@ -99,11 +120,10 @@
 
     .x-small { font-size: 0.75rem; }
 
-    /* High Contrast Table Overrides */
     .h-contrast-table td {
         padding-top: 1.2rem;
         padding-bottom: 1.2rem;
-        border-bottom: 1px solid #ffffff !important; /* Pure White separators */
+        border-bottom: 1px solid #222 !important;
         background-color: #000 !important;
     }
 
@@ -112,7 +132,6 @@
         background-color: #000 !important;
     }
 
-    /* Removing transparency from badges/text */
     .text-white { opacity: 1 !important; }
 </style>
 
