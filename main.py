@@ -212,8 +212,8 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.clear();
-    return redirect(url_for('global_leaderboard'))
+    session.clear()
+    return redirect(url_for('global_leaderboard')) # Use your actual landing page name
 
 
 # --- PASSWORD RECOVERY ---
