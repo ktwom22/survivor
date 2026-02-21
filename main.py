@@ -244,16 +244,38 @@ def create_league():
     if 'user_id' not in session: return redirect(url_for('login'))
     return render_template('create_league_config.html', league_name=request.form.get('league_name', 'New League'), default_points=POINTS_CONFIG)
 
+
 @app.route('/finalize_league', methods=['POST'])
 def finalize_league():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    custom_pts = {key: float(request.form.get(f'val_{key}', 0)) if request.form.get(f'active_{key}') == 'on' else 0 for key in POINTS_CONFIG.keys()}
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # SAFETY CHECK: Ensure the user actually exists in the DB
+    current_user = db.session.get(User, session['user_id'])
+    if not current_user:
+        session.clear()
+        flash("User not found. Please register again.", "danger")
+        return redirect(url_for('signup'))
+
+    custom_pts = {key: float(request.form.get(f'val_{key}', 0)) if request.form.get(f'active_{key}') == 'on' else 0 for
+                  key in POINTS_CONFIG.keys()}
     code = str(uuid.uuid4())[:6].upper()
+
     new_l = League(name=request.form.get('league_name'), invite_code=code, settings_json=json.dumps(custom_pts))
-    db.session.add(new_l); db.session.flush()
-    db.session.add(Roster(league_id=new_l.id, user_id=session['user_id']))
-    db.session.commit()
-    return redirect(url_for('league_success', code=code))
+    db.session.add(new_l)
+    db.session.flush()  # This generates the new_l.id
+
+    # Now creating the roster with a verified user_id
+    db.session.add(Roster(league_id=new_l.id, user_id=current_user.id))
+
+    try:
+        db.session.commit()
+        return redirect(url_for('league_success', code=code))
+    except Exception as e:
+        db.session.rollback()
+        flash("Database error. Try again.", "danger")
+        return redirect(url_for('index'))
+
 
 @app.route('/league-created/<code>')
 def league_success(code):
