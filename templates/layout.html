@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-GNCEJJSP65"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -22,7 +27,8 @@
 
     <meta name='impact-site-verification' value='4d3f82d2-dae2-4664-8182-ad6fb32185dd'>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#000000">
 
     <title>Drop Buffs | Survivor 50 Fantasy League</title>
@@ -122,9 +128,9 @@
         .ls-2 { letter-spacing: 2px; }
         .text-accent { color: var(--text-accent) !important; }
 
+        /* ACCESSIBILITY: Removed !important from opacity to ensure text remains readable */
         .text-white-50, .text-muted, .small, p, span, .lead {
             color: #ffffff !important;
-            opacity: 1 !important;
         }
 
         label {
@@ -204,7 +210,7 @@
         </div>
     </nav>
 
-    <div class="container">
+    <main class="container">
         {% with messages = get_flashed_messages() %}
           {% if messages %}
             {% for message in messages %}
@@ -216,9 +222,9 @@
         {% endwith %}
 
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
-    <div class="py-5 text-center">
+    <footer class="py-5 text-center">
         <hr class="border-light opacity-100 mb-4" style="border-width: 2px;">
         <p class="text-accent fw-900 small uppercase ls-2">Drop Buffs &copy; 2026</p>
         <p class="text-white fw-900 x-small uppercase ls-1">The Ultimate Survivor Fantasy Experience</p>
@@ -232,20 +238,20 @@
                 Sitemap
             </a>
         </div>
-    </div>
+    </footer>
 
     <div class="modal fade" id="howToPlayModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-900 text-accent uppercase ls-2">Manual of Survival</h5>
+                    <h2 class="modal-title h5 fw-900 text-accent uppercase ls-2">Manual of Survival</h2>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <h6 class="text-accent fw-900 uppercase ls-1">1. Build Your Tribe</h6>
+                    <h3 class="h6 text-accent fw-900 uppercase ls-1">1. Build Your Tribe</h3>
                     <p class="small mb-4">Draft your team of survivors. Once the season starts, your roster is <strong>locked</strong>. No trades, no changes—your picks are permanent.</p>
 
-                    <h6 class="text-accent fw-900 uppercase ls-1">2. Captain Multipliers</h6>
+                    <h3 class="h6 text-accent fw-900 uppercase ls-1">2. Captain Multipliers</h3>
                     <div class="table-responsive mb-4">
                         <table class="table table-sm table-dark border-secondary small">
                             <thead>
@@ -264,7 +270,7 @@
                         </table>
                     </div>
 
-                    <h6 class="text-accent fw-900 uppercase ls-1">3. Scoring Rules</h6>
+                    <h3 class="h6 text-accent fw-900 uppercase ls-1">3. Scoring Rules</h3>
                     <div class="row g-2">
                         <div class="col-6">
                             <ul class="list-unstyled small">
@@ -296,7 +302,17 @@
         </div>
     </div>
 
-    <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="dropbuffs" data-description="Support the Tribe!" data-message="If you're enjoying the league, consider supporting the project!" data-color="#ffcc00" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
+    <script data-name="BMC-Widget"
+            data-cfasync="false"
+            src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
+            data-id="dropbuffs"
+            data-description="Support the Tribe!"
+            data-message="If you're enjoying the league, consider supporting the project!"
+            data-color="#ffcc00"
+            data-position="Right"
+            data-x_margin="18"
+            data-y_margin="18"
+            defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
