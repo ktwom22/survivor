@@ -333,24 +333,34 @@ def join_global():
 
 @app.route('/global-leaderboard')
 def global_leaderboard():
+    # 1. Safety Check: If no user is logged in, redirect to login page
+    if 'user_id' not in session or 'username' not in session:
+        flash("Please log in to view the Global Standings.", "info")
+        return redirect(url_for('login'))
+
     global_rosters = Roster.query.filter_by(is_global=True).all()
     lb = sorted(
         [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if
          r.owner], key=lambda x: x['score'], reverse=True)
-    view_username = request.args.get('view_user')
-    if not view_username and 'username' in session:
-        view_username = session['username']
+
+    view_username = request.args.get('view_user', session['username'])
+
     target_tribe_data = None
     display_name = "Global Entry"
-    if view_username:
-        target_user = User.query.filter_by(username=view_username).first()
-        if target_user:
-            display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
-            if display_roster:
-                target_tribe_data = get_roster_data(display_roster)
-                display_name = f"{target_user.username}'s Tribe"
-    return render_template('global_standings.html', full_global_leaderboard=lb, total_global_entrants=len(lb), my_tribe=target_tribe_data, display_name=display_name)
 
+    target_user = User.query.filter_by(username=view_username).first()
+    if target_user:
+        display_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
+        if display_roster:
+            target_tribe_data = get_roster_data(display_roster)
+            # This is the line that matches your HTML logic
+            display_name = f"{target_user.username}'s Tribe"
+
+    return render_template('global_standings.html',
+                           full_global_leaderboard=lb,
+                           total_global_entrants=len(lb),
+                           my_tribe=target_tribe_data,
+                           display_name=display_name)
 
 @app.route('/global/draft')
 def global_draft_page():

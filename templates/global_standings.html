@@ -19,7 +19,8 @@
             {% endif %}
         </div>
 
-        {% if display_name == session.username + "'s Tribe" or display_name == "Your Global Entry" %}
+        {# Added null-safety check for session.username to prevent UndefinedError #}
+        {% if session.username and (display_name == session.username + "'s Tribe" or display_name == "Your Global Entry") %}
             <a href="{{ url_for('global_draft_page') }}" class="btn btn-sm btn-accent fw-900 uppercase ls-1">Edit Global Draft</a>
         {% endif %}
     </div>
@@ -87,13 +88,13 @@
         </thead>
         <tbody class="border-top-0">
             {% for p in full_global_leaderboard %}
-            <tr class="align-middle {% if p.user == session.username %}bg-accent-soft border-y-accent{% endif %}">
+            <tr class="align-middle {% if session.username and p.user == session.username %}bg-accent-soft border-y-accent{% endif %}">
                 <td class="ps-4 fw-900 text-accent">#{{ loop.index }}</td>
                 <td class="fw-900 uppercase ls-1">
                     <a href="{{ url_for('global_leaderboard', view_user=p.user) }}" class="text-white text-decoration-none border-bottom border-accent user-link">
                         {{ p.user }}
                     </a>
-                    {% if p.user == session.username %}
+                    {% if session.username and p.user == session.username %}
                         <span class="ms-2 badge bg-accent text-dark">YOU</span>
                     {% endif %}
                 </td>
