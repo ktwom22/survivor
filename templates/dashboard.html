@@ -28,7 +28,9 @@
                     {% if val != 0 %}
                     <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
                         <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
-                        <span class="small fw-900 text-white">{% if val > 0 %}+{% endif %}{{ val }}</span>
+                        <span class="small fw-900 {% if val < 0 %}text-danger{% else %}text-white{% endif %}">
+                            {% if val > 0 %}+{% endif %}{{ val }}
+                        </span>
                     </div>
                     {% endif %}
                 {% endfor %}
@@ -60,20 +62,22 @@
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (my_tribe.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
-                    <div class="pro-card mb-3 p-2 border-start" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
-                        <div class="d-flex align-items-center">
-                            <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
-                            <div class="flex-grow-1 ms-3">
-                                <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
-                                <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
-                                <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points }} Base Pts</div>
-                            </div>
-                            <div class="text-end pe-2">
-                                <div class="x-small fw-900 text-white-50">TOTAL</div>
-                                <div class="fw-900 fs-4 text-white">{{ (cap.points * mult)|round(1) }}</div>
+                    <a href="{{ url_for('player_profile', player_id=cap.id) }}" class="text-decoration-none mb-3 d-block">
+                        <div class="pro-card p-2 border-start tribe-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
+                                    <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
+                                    <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points }} Base Pts</div>
+                                </div>
+                                <div class="text-end pe-2">
+                                    <div class="x-small fw-900 text-white-50">TOTAL</div>
+                                    <div class="fw-900 fs-4 text-white">{{ (cap.points * mult)|round(1) }}</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 {% endfor %}
             </div>
 
@@ -81,13 +85,15 @@
             <div class="row g-2">
                 {% for p in my_tribe.regs %}
                 <div class="col-6 col-md-4">
-                    <div class="pro-card border-secondary p-0 overflow-hidden h-100">
-                        <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
-                        <div class="p-2 text-center bg-black">
-                            <div class="fw-900 uppercase text-truncate" style="font-size: 0.7rem;">{{ p.name }}</div>
-                            <div class="text-accent fw-900" style="font-size: 0.65rem;">{{ p.points|round(1) }} PTS</div>
+                    <a href="{{ url_for('player_profile', player_id=p.id) }}" class="text-decoration-none h-100 d-block">
+                        <div class="pro-card border-secondary p-0 overflow-hidden h-100 tribe-member-card">
+                            <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
+                            <div class="p-2 text-center bg-black">
+                                <div class="fw-900 uppercase text-truncate text-white" style="font-size: 0.7rem;">{{ p.name }}</div>
+                                <div class="text-accent fw-900" style="font-size: 0.65rem;">{{ p.points|round(1) }} PTS</div>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 {% endfor %}
             </div>
@@ -128,7 +134,7 @@
                         <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
-                                        onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
+                                        onclick="showQuickLook(event, `{{ p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
 
                                 <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
@@ -155,8 +161,9 @@
                 <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top;">
                 <div class="p-4 bg-gradient-dark">
                     <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1 small"></h6>
-                    <h2 id="modalName" class="fw-900 uppercase mb-3"></h2>
-                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
+                    <h2 id="modalName" class="fw-900 uppercase mb-2"></h2>
+                    <p id="modalDetails" class="text-white-50 small lh-lg mb-4"></p>
+                    <a id="modalProfileLink" href="#" class="btn btn-accent btn-sm fw-900 uppercase ls-1 w-100">View Season Stats 📊</a>
                 </div>
             </div>
         </div>
@@ -164,6 +171,9 @@
 </div>
 
 <style>
+    .tribe-member-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .tribe-member-card:hover { transform: translateY(-5px); border-color: var(--accent) !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+
     .btn-info-pop {
         position: absolute; top: 5px; right: 5px; z-index: 50;
         background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.3);
@@ -176,7 +186,6 @@
     .player-card-label { border-radius: 6px; overflow: hidden; transition: 0.2s; border-color: rgba(255,255,255,0.1) !important; cursor: pointer; }
     .btn-check:checked + .player-card-label { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); transform: scale(0.96); }
 
-    /* Visual feedback for disabled/already-picked players */
     .btn-check:disabled + .player-card-label { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
 
     .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
@@ -189,17 +198,20 @@
 </style>
 
 <script>
-    function showQuickLook(event, name, img, season, details) {
+    function showQuickLook(event, id, name, img, season, details) {
         if (event) { event.preventDefault(); event.stopPropagation(); }
         const modalEl = document.getElementById('quickLookModal');
         document.getElementById('modalName').innerText = name;
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
+
+        // Update the link to the player's unique profile page
+        document.getElementById('modalProfileLink').href = "/player/" + id;
+
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
-    // SEARCH FILTER
     document.getElementById('playerSearch')?.addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
         document.querySelectorAll('.player-item').forEach(item => {
@@ -207,7 +219,6 @@
         });
     });
 
-    // SELECTION & DUPLICATE PROTECTION LOGIC
     const capSelects = document.querySelectorAll('.cap-select');
     const regChecks = document.querySelectorAll('.reg-cb');
     const btn = document.getElementById('submitBtn');
@@ -217,7 +228,6 @@
         const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
         const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
 
-        // 1. Update Dropdowns (Prevent picking same person across Captain slots)
         capSelects.forEach(s => {
             Array.from(s.options).forEach(opt => {
                 if (opt.value === "") return;
@@ -226,13 +236,11 @@
             });
         });
 
-        // 2. Update Gallery (Prevent picking Captains as Regulars)
         regChecks.forEach(cb => {
             if (selectedCapIds.includes(cb.value)) {
-                cb.checked = false; // Uncheck if they just picked them as a captain
+                cb.checked = false;
                 cb.disabled = true;
             } else {
-                // Also respect the "Max 3" rule
                 if (currentRegCount >= 3 && !cb.checked) {
                     cb.disabled = true;
                 } else {
@@ -241,7 +249,6 @@
             }
         });
 
-        // 3. Update Submit Button
         if (counter) counter.innerText = `${currentRegCount} / 3`;
 
         if (currentRegCount === 3 && selectedCapIds.length === 3) {
@@ -257,7 +264,6 @@
         }
     }
 
-    // Attach Event Listeners
     capSelects.forEach(s => s.addEventListener('change', syncDraftPicks));
     regChecks.forEach(c => c.addEventListener('change', syncDraftPicks));
 </script>
