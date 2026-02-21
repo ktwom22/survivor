@@ -1,6 +1,6 @@
 import os, uuid, requests, csv, json, resend
 from io import StringIO
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
@@ -383,6 +383,15 @@ def admin_scoring():
             db.session.commit(); flash(f"Week {wn} results published!")
         return redirect(url_for('admin_scoring'))
     return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG)
+
+
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory(app.static_folder, 'robots.txt')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    return send_from_directory(app.static_folder, 'sitemap.xml')
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():

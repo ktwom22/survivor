@@ -1,0 +1,17 @@
+# Survivor Pro Fantasy Robots File
+User-agent: *
+
+# Allow crawling of public profiles and standings
+Allow: /
+Allow: /player/
+Allow: /global
+
+# Block sensitive Admin and User-specific routes
+Disallow: /admin/
+Disallow: /admin-scoring
+Disallow: /draft/
+Disallow: /logout
+Disallow: /static/vendor/ # Protect your internal libraries if necessary
+
+# Point to your sitemap
+Sitemap: https://yourdomain.com/sitemap.xml
