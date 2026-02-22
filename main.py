@@ -45,7 +45,7 @@ class User(db.Model):
 class Survivor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
-    slug = db.Column(db.String(100), unique=True, nullable=True)  # SEO SLUG
+    slug = db.Column(db.String(100), unique=True, nullable=True)
     image_url = db.Column(db.String(500))
     season = db.Column(db.String(100))
     details = db.Column(db.Text)
@@ -160,6 +160,22 @@ def calculate_roster_score(roster, pts_config):
     return round(score, 1)
 
 
+def process_pending_tribe(user_id):
+    """Helper to save a draft after registration/login"""
+    if 'pending_tribe' in session:
+        picks = session.pop('pending_tribe')
+        r = Roster.query.filter_by(user_id=user_id, is_global=True).first() or Roster(user_id=user_id, is_global=True)
+        if not r.id:
+            db.session.add(r)
+        r.cap1_id = int(picks['cap1'])
+        r.cap2_id = int(picks['cap2'])
+        r.cap3_id = int(picks['cap3'])
+        r.regular_ids = ",".join(picks['regs'])
+        db.session.commit()
+        return True
+    return False
+
+
 # --- ROUTES ---
 
 @app.route('/')
@@ -192,6 +208,11 @@ def signup():
             db.session.add(new_u)
             db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
+
+            # Check for guest draft
+            if process_pending_tribe(new_u.id):
+                flash("Welcome! Your tribe has been locked in.", "success")
+
             return redirect(url_for('index'))
         except:
             db.session.rollback()
@@ -206,6 +227,10 @@ def login():
             (User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
+
+            # Check for guest draft
+            process_pending_tribe(u.id)
+
             return redirect(url_for('index'))
         flash("Invalid credentials.", "danger")
     return render_template('login.html')
@@ -347,8 +372,10 @@ def draft(code):
 
 @app.route('/join-global', methods=['POST'])
 def join_global():
+    # If not logged in, just send to draft as a guest
     if 'user_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('global_draft_page'))
+
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
     if not r:
         r = Roster(user_id=session['user_id'], is_global=True)
@@ -360,10 +387,6 @@ def join_global():
 
 @app.route('/global-leaderboard')
 def global_leaderboard():
-    if 'user_id' not in session:
-        flash("Please log in to view the Global Standings.", "info")
-        return redirect(url_for('login'))
-
     global_rosters = Roster.query.filter_by(is_global=True).all()
     lb = []
     for r in global_rosters:
@@ -374,11 +397,11 @@ def global_leaderboard():
             })
 
     lb = sorted(lb, key=lambda x: x['score'], reverse=True)
-    view_username = request.args.get('view_user', session.get('username'))
+    view_username = request.args.get('view_user', session.get('username') or "Guest")
     target_user = User.query.filter_by(username=view_username).first()
 
     my_tribe_data = None
-    display_name = "Unknown Tribe"
+    display_name = "Global Contest"
 
     if target_user:
         target_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
@@ -394,8 +417,11 @@ def global_leaderboard():
 
 @app.route('/global/draft')
 def global_draft_page():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+    # Guests can see the page
+    roster = None
+    if 'user_id' in session:
+        roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
+
     available = Survivor.query.filter_by(is_out=False).all()
     return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG,
                            get_roster_data=get_roster_data)
@@ -403,27 +429,41 @@ def global_draft_page():
 
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
+    picks = {
+        'cap1': request.form.get('cap1'),
+        'cap2': request.form.get('cap2'),
+        'cap3': request.form.get('cap3'),
+        'regs': request.form.getlist('regs')
+    }
+
+    # IF NOT LOGGED IN: Save to session and redirect
     if 'user_id' not in session:
-        return redirect(url_for('login'))
+        session['pending_tribe'] = picks
+        flash("Tribe captured! Now create an account to secure your spot on the leaderboard.", "info")
+        return redirect(url_for('signup'))
+
+    # IF LOGGED IN: Normal Save
     user_exists = db.session.get(User, session['user_id'])
     if not user_exists:
         session.clear()
-        flash("Session expired or user not found. Please log in again.", "danger")
         return redirect(url_for('login'))
+
     r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'],
                                                                                              is_global=True)
     if not r.id:
         db.session.add(r)
-    r.cap1_id = int(request.form.get('cap1'))
-    r.cap2_id = int(request.form.get('cap2'))
-    r.cap3_id = int(request.form.get('cap3'))
-    r.regular_ids = ",".join(request.form.getlist('regs'))
+
+    r.cap1_id = int(picks['cap1'])
+    r.cap2_id = int(picks['cap2'])
+    r.cap3_id = int(picks['cap3'])
+    r.regular_ids = ",".join(picks['regs'])
+
     try:
         db.session.commit()
         flash("Global Tribe saved!", "success")
     except Exception as e:
         db.session.rollback()
-        flash("Error saving draft. Please try again.", "danger")
+        flash("Error saving draft.", "danger")
     return redirect(url_for('index'))
 
 
