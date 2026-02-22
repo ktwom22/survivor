@@ -1,17 +1,43 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://media-cldnry.s-nbcnews.com">
 
 <div class="row justify-content-center">
     <main class="col-md-11 text-center py-4">
-        <h1 class="display-3 fw-900 uppercase ls-2 mb-2" style="letter-spacing: 5px;">
-            OUTWIT <span class="text-accent">OUTPLAY</span> OUTLAST
-        </h1>
-        <p class="lead text-white fw-900 uppercase ls-2 mb-5">Survivor 50 Fantasy League</p>
+
+        <div class="py-5 mb-4 position-relative overflow-hidden rounded" style="background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://media-cldnry.s-nbcnews.com/image/upload/t_fit-1500w,f_auto,q_auto:best/rockcms/2024-02/240227-survivor-46-cast-mn-1110-863a34.jpg'); background-size: cover; background-position: center; border: 1px solid rgba(255,255,255,0.1);">
+            <div class="position-relative z-2 px-3">
+                <h1 class="display-3 fw-900 uppercase ls-2 mb-2 text-white" style="letter-spacing: 5px; text-shadow: 2px 2px 10px rgba(0,0,0,0.8);">
+                    OUTWIT <span class="text-accent">OUTPLAY</span> OUTLAST
+                </h1>
+                <p class="lead text-white-50 fw-900 uppercase ls-2 mb-4">The Ultimate Survivor 50 Fantasy Experience</p>
+
+                <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
+                    <div class="px-3 py-2 bg-black-50 border border-secondary rounded backdrop-blur">
+                        <div class="x-small fw-900 text-accent uppercase">Active Entrants</div>
+                        <div class="h4 m-0 fw-900 text-white">{{ total_global_entrants }}</div>
+                    </div>
+                    <div class="px-3 py-2 bg-black-50 border border-secondary rounded backdrop-blur">
+                        <div class="x-small fw-900 text-accent uppercase">Season Status</div>
+                        <div class="h4 m-0 fw-900 text-white">LIVE</div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="#cast-section" class="btn btn-outline-light fw-900 uppercase ls-1 px-4 border-2 py-2">
+                        Meet the Cast
+                    </a>
+                    {% if not user_in_global %}
+                        <form action="{{ url_for('join_global') }}" method="POST" class="m-0">
+                            <button type="submit" class="btn btn-accent fw-900 uppercase ls-1 px-4 text-dark py-2">Start Drafting</button>
+                        </form>
+                    {% else %}
+                        <a href="{{ url_for('global_draft_page') }}" class="btn btn-accent fw-900 uppercase ls-1 px-4 text-dark py-2">View Your Tribe</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
         <div class="pro-card border-accent bg-black mb-5 text-start shadow-lg" style="border-width: 3px !important;">
             <div class="row align-items-center g-4 p-2">
@@ -20,7 +46,7 @@
                         <span class="badge bg-accent text-dark fw-900 me-3 px-3 py-2 fs-6">GLOBAL EVENT</span>
                         <h3 class="fw-900 uppercase m-0 text-white">World Series Leaderboard</h3>
                     </div>
-                    <p class="text-white fw-bold small mb-4">Anyone can enter. Unlimited entrants. Compete against the world with the standard scoring system.</p>
+                    <p class="text-white fw-bold small mb-4">Anyone can enter. Unlimited entrants. Compete against the world with standard scoring.</p>
 
                     <div class="list-group list-group-flush border-top border-secondary" style="border-width: 2px !important;">
                         {% if global_top_5 %}
@@ -37,27 +63,16 @@
                             </div>
                             {% endfor %}
                         {% else %}
-                            <div class="py-3 text-accent fw-900 small italic">Waiting for the first tribes to be drafted...</div>
+                            <div class="py-3 text-accent fw-900 small italic text-center">Waiting for the first tribes to be drafted...</div>
                         {% endif %}
                     </div>
 
                     <div class="mt-4 d-flex gap-2 flex-column flex-sm-row">
                         <a href="{{ url_for('global_leaderboard') }}" class="btn btn-outline-light fw-900 uppercase ls-1 px-4 border-2">
-                            Expand Standings ({{ total_global_entrants }})
+                            Full Standings
                         </a>
-
-                        {% if not user_in_global %}
-                            <form action="{{ url_for('join_global') }}" method="POST" class="m-0">
-                                <button type="submit" class="btn btn-accent fw-900 uppercase ls-1 px-4 text-dark w-100">Enter Tournament</button>
-                            </form>
-                        {% else %}
-                            <a href="{{ url_for('global_draft_page') }}" class="btn btn-success fw-900 uppercase ls-1 px-4 shadow-glow text-white border-0">
-                                <i class="bi bi-person-plus-fill me-2"></i>Draft Global Tribe
-                            </a>
-                        {% endif %}
-
                         <button onclick="shareRules()" class="btn btn-outline-accent fw-900 uppercase ls-1 px-4 border-2">
-                            <i class="bi bi-share-fill me-2"></i>Share Rules
+                            <i class="bi bi-share-fill me-2"></i>Scoring Rules
                         </button>
                     </div>
                 </div>
@@ -65,7 +80,7 @@
                     <div class="p-4 rounded border-2 border-secondary bg-darker">
                         <div class="display-1 fw-900 text-accent mb-0">S50</div>
                         <div class="fw-900 uppercase ls-2 text-white">Global Champion</div>
-                        <div class="mt-3 x-small text-accent fw-900 italic">THE ULTIMATE BRAGGING RIGHTS</div>
+                        <div class="mt-3 x-small text-accent fw-900 italic">EARN THE ULTIMATE TITLE</div>
                     </div>
                 </div>
             </div>
@@ -89,7 +104,7 @@
                         {% endfor %}
                     {% else %}
                         <div class="text-center py-4">
-                            <p class="text-white fw-900 small">Join a friend's league or start your own to play in a small group.</p>
+                            <p class="text-white-50 fw-900 small mb-0">No active leagues. Join a friend or start your own below.</p>
                         </div>
                     {% endif %}
                 </div>
@@ -100,21 +115,19 @@
                     <h4 class="fw-900 uppercase ls-1 mb-4 text-white">Join / Create</h4>
 
                     <form action="{{ url_for('join_league') }}" method="POST" class="mb-4">
-                        <label for="invite_code_input" class="x-small fw-900 uppercase text-white mb-2 d-block">Enter Invite Code</label>
                         <div class="input-group">
-                            <input type="text" id="invite_code_input" name="invite_code" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="XXXXXX" required>
+                            <input type="text" name="invite_code" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="INVITE CODE" required>
                             <button class="btn btn-outline-light fw-900 px-4 border-2" type="submit">JOIN</button>
                         </div>
                     </form>
 
                     <div class="text-center my-3">
-                        <span class="x-small fw-900 text-white uppercase ls-2">— OR —</span>
+                        <span class="x-small fw-900 text-white-50 uppercase ls-2">— OR —</span>
                     </div>
 
                     <form action="{{ url_for('create_league') }}" method="POST">
-                        <label for="league_name_input" class="x-small fw-900 uppercase text-accent mb-2 d-block">New League Name</label>
                         <div class="input-group">
-                            <input type="text" id="league_name_input" name="league_name" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="Island Kings" required>
+                            <input type="text" name="league_name" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="NEW LEAGUE NAME" required>
                             <button class="btn btn-accent text-dark fw-900 px-4 border-0" type="submit">CREATE</button>
                         </div>
                     </form>
@@ -122,8 +135,12 @@
             </div>
         </div>
 
-        <div class="mt-5 pt-5 text-start">
-            <h4 class="fw-900 uppercase ls-1 mb-4 border-bottom border-2 border-secondary pb-2 text-white">Meet the Cast</h4>
+        <div id="cast-section" class="mt-5 pt-5 text-start">
+            <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-2 border-secondary pb-2">
+                <h4 class="fw-900 uppercase ls-1 m-0 text-white">Meet the Cast</h4>
+                <span class="x-small text-white-50 fw-bold uppercase ls-1">Click for bio & stats</span>
+            </div>
+
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
                 {% for p in cast %}
                 <div class="col">
@@ -131,12 +148,7 @@
                          onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.slug or p.id }}`)">
 
                         <div class="cast-img-container">
-                            <img src="{{ p.image_url.replace('t_fit-760w', 't_fit-320w') }}"
-                                 alt="{{ p.name }}"
-                                 class="cast-img"
-                                 loading="lazy"
-                                 width="300"
-                                 height="300">
+                            <img src="{{ p.image_url }}" alt="{{ p.name }}" class="cast-img" loading="lazy">
                             {% if p.is_out %}
                                 <div class="cast-out-overlay">VOTED OUT</div>
                             {% endif %}
@@ -157,12 +169,12 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
             <div class="modal-body p-0 position-relative">
-                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal" aria-label="Close"></button>
-                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);" alt="Cast Member">
-                <div class="p-4 bg-black">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);">
+                <div class="p-4 bg-black text-start">
                     <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1"></h6>
                     <h2 id="modalName" class="fw-900 uppercase mb-3 text-white"></h2>
-                    <p id="modalDetails" class="text-white fw-bold small lh-lg"></p>
+                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
                     <div class="mt-4">
                         <a id="modalProfileBtn" href="#" class="btn btn-accent btn-lg w-100 fw-900 uppercase ls-1 text-dark">View Season Stats</a>
                     </div>
@@ -177,11 +189,11 @@
         <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
             <div class="modal-header border-secondary">
                 <h5 class="modal-title fw-900 uppercase">Scoring Rules</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
                 <div class="p-3 bg-darker border border-secondary rounded mb-3">
-                    <h6 class="text-accent fw-900 mb-3">POINT BREAKDOWN</h6>
+                    <h6 class="text-accent fw-900 mb-3">STANDARD POINT SYSTEM</h6>
                     <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Survive Episode</span><span class="text-accent">+2.0</span></div>
                     <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Win Immunity</span><span class="text-accent">+5.0</span></div>
                     <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Confessional Cry</span><span class="text-accent">+2.0</span></div>
@@ -197,27 +209,21 @@
 <style>
     :root { --ocean: #0ea5e9; }
     .bg-darker { background: #0c0c0c; }
+    .backdrop-blur { backdrop-filter: blur(8px); background: rgba(0,0,0,0.4); }
     .btn-ocean { background-color: var(--ocean); color: white; border: none; font-weight: 900; }
-    .btn-ocean:hover { background-color: #0284c7; color: white; }
-    .hover-glow:hover { border-color: var(--accent) !important; background: #111; }
+    .hover-glow:hover { border-color: var(--accent) !important; background: #111; transition: 0.2s; }
     .pointer { cursor: pointer; }
-    .shadow-glow { box-shadow: 0 0 20px rgba(25, 135, 84, 0.6); }
-    .btn-outline-accent { border-color: var(--accent); color: var(--accent); }
-    .btn-outline-accent:hover { background-color: var(--accent); color: #000; }
-
-    .cast-card { transition: transform 0.2s ease; }
-    .cast-card:hover { transform: scale(1.05); border-color: var(--accent) !important; z-index: 10; }
-    .cast-img-container { height: 180px; position: relative; background: #000; }
+    .cast-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .cast-card:hover { transform: translateY(-10px); border-color: var(--accent) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+    .cast-img-container { height: 200px; position: relative; background: #000; }
     .cast-img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
-
     .cast-out-overlay {
         position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%) rotate(-15deg);
         background: #dc2626; color: white;
         font-weight: 900; padding: 5px 15px; border: 3px solid white;
-        font-size: 0.8rem; z-index: 2; pointer-events: none;
+        font-size: 0.8rem; z-index: 2; box-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
-
     .italic { font-style: italic; }
 </style>
 
@@ -228,35 +234,23 @@
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
-        const profileBtn = document.getElementById('modalProfileBtn');
-        if (profileBtn && identifier) {
-            profileBtn.href = `/player/${identifier}`;
-        }
+        document.getElementById('modalProfileBtn').href = `/player/${identifier}`;
+
         const modalEl = document.getElementById('quickLookModal');
-        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        bsModal.show();
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
     async function shareRules() {
-        const shareData = {
-            title: 'Survivor 50 Fantasy Rules',
-            text: 'Join my Survivor 50 Tribe! Points for crying, immunity, and survival. Draft here:',
-            url: window.location.origin
-        };
-
         if (navigator.share) {
             try {
-                await navigator.share(shareData);
-            } catch (err) {
-                console.log('Share error', err);
-            }
+                await navigator.share({
+                    title: 'Survivor 50 Fantasy Rules',
+                    text: 'Join my Survivor 50 Tribe! Draft here:',
+                    url: window.location.origin
+                });
+            } catch (err) {}
         } else {
-            const rulesModal = new bootstrap.Modal(document.getElementById('rulesModal'));
-            rulesModal.show();
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(window.location.origin);
-                alert("Site link copied to clipboard!");
-            }
+            new bootstrap.Modal(document.getElementById('rulesModal')).show();
         }
     }
 </script>
