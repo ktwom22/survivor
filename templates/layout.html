@@ -15,32 +15,59 @@
     </script>
 
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "VideoGame",
-      "name": "Drop Buffs Survivor Fantasy",
-      "genre": "Fantasy Sports",
-      "author": {"@type": "Organization", "name": "Drop Buffs"},
-      "description": "Premier Fantasy League for Survivor Season 50."
-    }
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Drop Buffs Survivor Fantasy",
+        "operatingSystem": "Web",
+        "applicationCategory": "SportsApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "The premier Survivor 50 Fantasy League and Draft Kit. Track live player stats, manage your tribe, and climb the global leaderboards."
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "SportsEvent",
+        "name": "Survivor Season 50 Fantasy Tournament",
+        "startDate": "2026-02-25",
+        "location": {
+          "@type": "VirtualLocation",
+          "url": "https://dropbuffs.com/"
+        },
+        "organizer": {
+          "@type": "Organization",
+          "name": "Drop Buffs"
+        }
+      }
+    ]
     </script>
 
     <meta name='impact-site-verification' value='4d3f82d2-dae2-4664-8182-ad6fb32185dd'>
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#000000">
 
-    <title>Drop Buffs | Survivor 50 Fantasy League</title>
-    <meta name="description" content="The ultimate Survivor 50 Fantasy League. Draft your tribe, outwit the competition, and climb the global leaderboard. Join the premier CBS Survivor fan tournament.">
-    <meta name="keywords" content="Survivor 50, Survivor Fantasy League, CBS Survivor, Drop Buffs, Survivor Season 50, Fantasy Survivor Game, Jeff Probst, Survivor Draft">
+    <title>{% if seo_title %}{{ seo_title }}{% else %}Drop Buffs | Survivor 50 Fantasy League & Draft Kit{% endif %}</title>
+    <meta name="description" content="{% if seo_desc %}{{ seo_desc }}{% else %}The ultimate Survivor 50 Fantasy League. Draft your tribe of legends, track real-time player stats, and compete on the Global Leaderboard. Join the premier fan experience for Survivor Season 50.{% endif %}">
+    <meta name="keywords" content="Survivor 50, Survivor Fantasy League, Survivor Season 50 Cast, Drop Buffs, Survivor Draft Kit, CBS Survivor Stats, Jeff Probst, Fantasy Survivor Game 2026">
     <meta name="author" content="Drop Buffs">
+    <link rel="canonical" href="https://dropbuffs.com{{ request.path }}">
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://dropbuffs.com/">
-    <meta property="og:title" content="Survivor 50 | Fantasy League Tournament">
-    <meta property="og:description" content="Compete globally in the Survivor 50 Fantasy League. Outwit, Outplay, Outlast.">
+    <meta property="og:title" content="Survivor 50 | Fantasy League & Global Leaderboard">
+    <meta property="og:description" content="Draft your Survivor 50 legends. Outwit, Outplay, Outlast on the global stage. Free to play.">
     <meta property="og:image" content="{{ url_for('static', filename='img/og-preview.jpg') }}">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://dropbuffs.com/">
+    <meta name="twitter:title" content="Survivor 50 Fantasy League | Drop Buffs">
+    <meta name="twitter:description" content="Compete in the premier Survivor 50 fan tournament. Manage your tribe and track live points.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/og-preview.jpg') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;900&display=swap" rel="stylesheet">
@@ -107,7 +134,6 @@
         }
         .how-to-link:hover { opacity: 0.8; }
 
-        /* New Draft Kit Link Style */
         .draft-kit-link {
             background: rgba(255, 204, 0, 0.1);
             border: 1px solid var(--accent);
@@ -199,12 +225,14 @@
 
     <nav class="navbar navbar-dark nav-custom mb-3 mb-md-4">
         <div class="container d-flex justify-content-between align-items-center">
-            <a class="navbar-brand fw-900 uppercase ls-2" href="/">
-                DROP<span class="text-accent">BUFFS</span>
-            </a>
+            <h1 class="m-0" style="font-size: inherit;">
+                <a class="navbar-brand fw-900 uppercase ls-2" href="/" title="Drop Buffs Home">
+                    DROP<span class="text-accent">BUFFS</span>
+                </a>
+            </h1>
 
             <div class="d-flex align-items-center gap-2 gap-md-3">
-                <a href="{{ url_for('draft_trends') }}" class="how-to-link draft-kit-link uppercase ls-1">
+                <a href="{{ url_for('draft_trends') }}" class="how-to-link draft-kit-link uppercase ls-1" title="Survivor 50 Draft Kit">
                     <i class="fas fa-chart-line"></i> <span class="d-none d-sm-inline">Draft</span> Kit
                 </a>
 
@@ -223,6 +251,11 @@
     </nav>
 
     <main class="container">
+        <div class="visually-hidden">
+            <h2>Expert Survivor 50 Fantasy Analysis</h2>
+            <p>Welcome to Drop Buffs, the comprehensive database for Survivor Season 50 statistics. Whether you are looking for player rankings, tribe analysis, or a global fantasy leaderboard, we provide the ultimate toolkit for CBS Survivor fans. Outwit, outplay, and outlast with our custom draft engine.</p>
+        </div>
+
         {% with messages = get_flashed_messages() %}
           {% if messages %}
             {% for message in messages %}
@@ -244,7 +277,7 @@
         <div class="d-flex justify-content-center gap-3 mt-2">
             <a href="{{ url_for('draft_trends') }}" class="text-white-50 x-small uppercase ls-1 text-decoration-none">Draft Kit</a>
             <span class="text-white-50 x-small">|</span>
-            <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="text-white-50 x-small uppercase ls-1 text-decoration-none">
+            <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="text-white-50 x-small uppercase ls-1 text-decoration-none" rel="nofollow">
                  Support the Dev
             </a>
             <span class="text-white-50 x-small">|</span>
@@ -254,16 +287,16 @@
         </div>
     </footer>
 
-    <div class="modal fade" id="howToPlayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="howToPlayModal" tabindex="-1" aria-labelledby="howToPlayTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header border-secondary">
-                    <h2 class="modal-title h5 fw-900 text-accent uppercase ls-2">Manual of Survival</h2>
+                    <h2 class="modal-title h5 fw-900 text-accent uppercase ls-2" id="howToPlayTitle">Manual of Survival</h2>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <h3 class="h6 text-accent fw-900 uppercase ls-1">1. Build Your Tribe</h3>
-                    <p class="small mb-4">Draft your team of survivors. Once the season starts, your roster is <strong>locked</strong>. No trades, no changes—your picks are permanent.</p>
+                    <p class="small mb-4 text-white">Draft your team of survivors. Once the season starts, your roster is <strong>locked</strong>. No trades, no changes—your picks are permanent.</p>
 
                     <h3 class="h6 text-accent fw-900 uppercase ls-1">2. Captain Multipliers</h3>
                     <div class="table-responsive mb-4">
@@ -287,7 +320,7 @@
                     <h3 class="h6 text-accent fw-900 uppercase ls-1">3. Scoring Rules</h3>
                     <div class="row g-2">
                         <div class="col-6">
-                            <ul class="list-unstyled small">
+                            <ul class="list-unstyled small text-white">
                                 <li>🔥 Survive Episode: +2.0</li>
                                 <li>🛡️ Win Immunity: +5.0</li>
                                 <li>🎁 Win Reward: +2.0</li>
@@ -295,7 +328,7 @@
                             </ul>
                         </div>
                         <div class="col-6">
-                            <ul class="list-unstyled small">
+                            <ul class="list-unstyled small text-white">
                                 <li>😭 Confessional Cry: +2.0</li>
                                 <li>🏆 Season Winner: +20.0</li>
                                 <li>💀 Idol In Pocket: -5.0</li>
@@ -308,7 +341,7 @@
                         <p class="x-small mb-2 text-white">Scout the competition before you draft!</p>
                         <a href="{{ url_for('draft_trends') }}" class="btn btn-accent btn-sm fw-900 uppercase mb-2">Open Draft Kit</a>
                         <br>
-                        <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="btn btn-outline-light btn-sm fw-900">Buy a Coffee</a>
+                        <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="btn btn-outline-light btn-sm fw-900" rel="nofollow">Buy a Coffee</a>
                     </div>
                 </div>
                 <div class="modal-footer border-secondary">
