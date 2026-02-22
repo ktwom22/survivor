@@ -1,17 +1,28 @@
-# Survivor Pro Fantasy Robots File
+# DROP BUFFS | SURVIVOR 50 FANTASY HUB
+# Robots.txt - Optimized for Season 50 Launch
+
 User-agent: *
 
-# Allow crawling of public profiles and standings
+# Allow crawling of high-value SEO pages
 Allow: /
 Allow: /player/
 Allow: /global
+Allow: /trends
+Allow: /static/img/og-preview.jpg
 
-# Block sensitive Admin and User-specific routes
+# Block sensitive, private, or low-value routes
 Disallow: /admin/
 Disallow: /admin-scoring
 Disallow: /draft/
+Disallow: /join_global
+Disallow: /create_league
+Disallow: /join_league
+Disallow: /league_dashboard/
 Disallow: /logout
-Disallow: /static/vendor/ # Protect your internal libraries if necessary
+Disallow: /static/vendor/
 
-# Point to your sitemap
-Sitemap: https://yourdomain.com/sitemap.xml
+# Performance: Friendly crawl delay for smaller servers
+Crawl-delay: 1
+
+# Link to the dynamic sitemap
+Sitemap: https://dropbuffs.com/sitemap.xml
