@@ -12,9 +12,15 @@
     </div>
 
     <div class="mb-5">
-        <h3 class="fw-900 uppercase ls-1 mb-4 border-bottom border-2 border-secondary pb-2 text-white">
-            <i class="bi bi-graph-up-arrow me-2 text-accent"></i>Draft Analytics
-        </h3>
+        <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-2 border-secondary pb-2">
+            <h3 class="fw-900 uppercase ls-1 m-0 text-white">
+                <i class="bi bi-graph-up-arrow me-2 text-accent"></i>Draft Analytics
+            </h3>
+            <a href="{{ url_for('global_leaderboard') }}" class="how-to-link x-small text-accent uppercase ls-1 text-decoration-none">
+                <i class="fas fa-trophy me-1"></i> View Standings
+            </a>
+        </div>
+
         <div class="row g-3">
             {% for s in stats %}
             <div class="col-12 col-md-6">
@@ -81,9 +87,14 @@
 
     <div class="mt-5 py-5 text-center">
         <h2 class="fw-900 text-white uppercase mb-4">Ready to lock in your Tribe?</h2>
-        <a href="{{ url_for('global_draft_page') }}" class="btn btn-accent btn-lg px-5 fw-900 uppercase ls-1 text-dark">
-            Enter the Global Draft
-        </a>
+        <div class="d-flex flex-column flex-md-row justify-content-center gap-3">
+            <a href="{{ url_for('global_draft_page') }}" class="btn btn-accent btn-lg px-5 fw-900 uppercase ls-1 text-dark">
+                Enter the Global Draft
+            </a>
+            <a href="{{ url_for('global_leaderboard') }}" class="btn btn-outline-light btn-lg px-5 fw-900 uppercase ls-1">
+                Global Leaderboard
+            </a>
+        </div>
     </div>
 </div>
 
@@ -144,6 +155,8 @@
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Original Season: " + season;
         document.getElementById('modalDetails').innerText = details;
+
+        // Ensure this maps to your profile route correctly
         document.getElementById('modalProfileBtn').href = `/player/${identifier}`;
 
         const modalEl = document.getElementById('quickLookModal');
