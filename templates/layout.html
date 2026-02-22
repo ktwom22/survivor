@@ -107,6 +107,19 @@
         }
         .how-to-link:hover { opacity: 0.8; }
 
+        /* New Draft Kit Link Style */
+        .draft-kit-link {
+            background: rgba(255, 204, 0, 0.1);
+            border: 1px solid var(--accent);
+            padding: 5px 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        .draft-kit-link:hover {
+            background: var(--accent);
+            color: #000 !important;
+        }
+
         .pro-card {
             background: var(--card-bg);
             border: 2px solid var(--border);
@@ -128,7 +141,6 @@
         .ls-2 { letter-spacing: 2px; }
         .text-accent { color: var(--text-accent) !important; }
 
-        /* ACCESSIBILITY: Removed !important from opacity to ensure text remains readable */
         .text-white-50, .text-muted, .small, p, span, .lead {
             color: #ffffff !important;
         }
@@ -191,17 +203,17 @@
                 DROP<span class="text-accent">BUFFS</span>
             </a>
 
-            <div class="d-flex align-items-center gap-3">
-                <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="how-to-link uppercase ls-1 d-none d-md-flex">
-                    <i class="fas fa-heart"></i> Support
+            <div class="d-flex align-items-center gap-2 gap-md-3">
+                <a href="{{ url_for('draft_trends') }}" class="how-to-link draft-kit-link uppercase ls-1">
+                    <i class="fas fa-chart-line"></i> <span class="d-none d-sm-inline">Draft</span> Kit
                 </a>
 
-                <a href="#" class="how-to-link uppercase ls-1" data-bs-toggle="modal" data-bs-target="#howToPlayModal">
+                <a href="#" class="how-to-link uppercase ls-1 d-none d-md-flex" data-bs-toggle="modal" data-bs-target="#howToPlayModal">
                     <i class="fas fa-info-circle"></i> How to Play
                 </a>
 
                 {% if session.user_id %}
-                    <a href="/" class="btn btn-outline-light btn-sm fw-900 uppercase ls-1 px-3">Home</a>
+                    <a href="/" class="btn btn-outline-light btn-sm fw-900 uppercase ls-1 px-3 d-none d-sm-block">Home</a>
                     <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-900 uppercase ls-1 px-3" style="color: #ff4444 !important; border-color: #ff4444 !important; border-width: 2px;">Logout</a>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="btn btn-accent btn-sm fw-900 uppercase ls-1 px-4">Login</a>
@@ -230,6 +242,8 @@
         <p class="text-white fw-900 x-small uppercase ls-1">The Ultimate Survivor Fantasy Experience</p>
 
         <div class="d-flex justify-content-center gap-3 mt-2">
+            <a href="{{ url_for('draft_trends') }}" class="text-white-50 x-small uppercase ls-1 text-decoration-none">Draft Kit</a>
+            <span class="text-white-50 x-small">|</span>
             <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="text-white-50 x-small uppercase ls-1 text-decoration-none">
                  Support the Dev
             </a>
@@ -291,7 +305,9 @@
                     </div>
 
                     <div class="mt-4 p-3 border border-secondary text-center">
-                        <p class="x-small mb-2">Drop Buffs is a fan project. If you're enjoying the game, consider supporting the server costs.</p>
+                        <p class="x-small mb-2 text-white">Scout the competition before you draft!</p>
+                        <a href="{{ url_for('draft_trends') }}" class="btn btn-accent btn-sm fw-900 uppercase mb-2">Open Draft Kit</a>
+                        <br>
                         <a href="https://buymeacoffee.com/dropbuffs" target="_blank" class="btn btn-outline-light btn-sm fw-900">Buy a Coffee</a>
                     </div>
                 </div>
