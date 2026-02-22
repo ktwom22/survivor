@@ -1,60 +1,153 @@
 {% extends "layout.html" %}
+
 {% block content %}
 <div class="container py-4">
     <div class="text-center mb-5">
-        <h1 class="fw-900 uppercase text-accent display-5">Draft Analytics</h1>
-        <p class="text-white-50">Based on {{ total_users }} active tribes</p>
+        <h1 class="fw-900 uppercase text-accent display-4 ls-2" style="letter-spacing: 5px;">S50 DRAFT KIT</h1>
+        <p class="lead text-white-50 fw-900 uppercase">Scout the Cast. Analyze the Trends. Build your Tribe.</p>
+        <div class="d-flex justify-content-center gap-3 mt-3">
+            <span class="badge border border-accent text-accent px-3 py-2">{{ total_users }} Tribes Drafted</span>
+            <span class="badge border border-secondary text-white-50 px-3 py-2">Season 50 Live Data</span>
+        </div>
     </div>
 
-    <div class="row g-3">
-        {% for s in stats %}
-        <div class="col-12 col-md-6">
-            <div class="pro-card border-secondary d-flex align-items-center p-3">
-                <a href="{{ url_for('player_profile', slug=s.slug) }}">
-                    <img src="{{ s.image }}" alt="{{ s.name }}" class="rounded shadow-hover" style="width: 60px; height: 60px; object-fit: cover; border: 1px solid #444;">
-                </a>
+    <div class="mb-5">
+        <h3 class="fw-900 uppercase ls-1 mb-4 border-bottom border-2 border-secondary pb-2 text-white">
+            <i class="bi bi-graph-up-arrow me-2 text-accent"></i>Draft Analytics
+        </h3>
+        <div class="row g-3">
+            {% for s in stats %}
+            <div class="col-12 col-md-6">
+                <div class="pro-card border-secondary d-flex align-items-center p-3 bg-black">
+                    <a href="{{ url_for('player_profile', slug=s.slug) }}">
+                        <img src="{{ s.image }}" alt="{{ s.name }}" class="rounded shadow-hover" style="width: 65px; height: 65px; object-fit: cover; border: 2px solid #444;">
+                    </a>
 
-                <div class="flex-grow-1 ms-3">
-                    <h5 class="fw-900 m-0 uppercase">
-                        <a href="{{ url_for('player_profile', slug=s.slug) }}" class="text-white text-decoration-none hover-accent transition">
-                            {{ s.name }}
-                        </a>
-                    </h5>
-                    <div class="progress bg-black border border-secondary mt-2" style="height: 8px;">
-                        <div class="progress-bar bg-accent" style="width: {{ s.total_pct }}%"></div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="fw-900 m-0 uppercase">
+                            <a href="{{ url_for('player_profile', slug=s.slug) }}" class="text-white text-decoration-none hover-accent transition">
+                                {{ s.name }}
+                            </a>
+                        </h5>
+                        <div class="progress bg-black border border-secondary mt-2" style="height: 10px; border-radius: 10px;">
+                            <div class="progress-bar bg-accent" style="width: {{ s.total_pct }}%; border-radius: 10px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="text-end ms-3">
+                        <div class="x-small fw-900 text-white-50 uppercase" style="font-size: 0.65rem;">Ownership</div>
+                        <div class="fw-900 fs-4 text-accent">{{ s.total_pct }}%</div>
                     </div>
                 </div>
 
-                <div class="text-end ms-3">
-                    <div class="x-small fw-900 text-white-50 uppercase">Ownership</div>
-                    <div class="fw-900 fs-4 text-accent">{{ s.total_pct }}%</div>
+                <div class="d-flex justify-content-between px-3 py-2 bg-black-50 border-start border-end border-bottom border-secondary rounded-bottom">
+                    <span class="x-small text-white-50 uppercase">As Gold Captain: <strong class="text-white">{{ s.gold_pct }}%</strong></span>
+                    <span class="x-small text-white-50 uppercase">Pick Count: <strong class="text-white">{{ s.count }}</strong></span>
                 </div>
             </div>
+            {% endfor %}
+        </div>
+    </div>
 
-            <div class="d-flex justify-content-between px-3 py-2 bg-black-50 border-start border-end border-bottom border-secondary rounded-bottom">
-                <span class="x-small text-white-50 uppercase">As Gold Captain: <strong>{{ s.gold_pct }}%</strong></span>
-                <span class="x-small text-white-50 uppercase">Any Captain: <strong>{{ s.captain_pct }}%</strong></span>
+    <div id="cast-section" class="mt-5 pt-4">
+        <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-2 border-secondary pb-2">
+            <h3 class="fw-900 uppercase ls-1 m-0 text-white">
+                <i class="bi bi-person-badge me-2 text-accent"></i>Scout the Cast
+            </h3>
+            <span class="x-small text-white-50 fw-bold uppercase ls-1">Click image for Bio & Stats</span>
+        </div>
+
+        <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+            {% for p in cast %}
+            <div class="col">
+                <div class="pro-card p-0 border-2 border-secondary h-100 cast-card overflow-hidden position-relative pointer transition-hover bg-black"
+                     onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.slug or p.id }}`)">
+
+                    <div class="cast-img-container">
+                        <img src="{{ p.image_url }}" alt="{{ p.name }}" class="cast-img" loading="lazy">
+                        {% if p.is_out %}
+                            <div class="cast-out-overlay">VOTED OUT</div>
+                        {% endif %}
+                    </div>
+                    <div class="p-2 text-center border-top border-2 border-secondary">
+                        <p class="x-small fw-900 text-white uppercase mb-0">{{ p.name }}</p>
+                        <div class="x-small text-accent fw-900">{{ p.points|round(1) }} SEASON PTS</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mt-5 py-5 text-center">
+        <h2 class="fw-900 text-white uppercase mb-4">Ready to lock in your Tribe?</h2>
+        <a href="{{ url_for('global_draft_page') }}" class="btn btn-accent btn-lg px-5 fw-900 uppercase ls-1 text-dark">
+            Enter the Global Draft
+        </a>
+    </div>
+</div>
+
+<div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
+            <div class="modal-body p-0 position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);">
+                <div class="p-4 bg-black text-start">
+                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1"></h6>
+                    <h2 id="modalName" class="fw-900 uppercase mb-3 text-white"></h2>
+                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
+                    <div class="mt-4">
+                        <a id="modalProfileBtn" href="#" class="btn btn-accent btn-lg w-100 fw-900 uppercase ls-1 text-dark">Full Scouting Profile</a>
+                    </div>
+                </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 </div>
 
 <style>
     .bg-black-50 { background: rgba(0,0,0,0.5); }
     .progress-bar { transition: width 1s ease-in-out; }
-
-    /* Smooth transition for links */
     .transition { transition: all 0.2s ease; }
-
-    /* Highlight name on hover */
     .hover-accent:hover { color: var(--accent) !important; }
 
-    /* Make the image "pop" when hovered */
+    .shadow-hover { transition: all 0.2s; }
     .shadow-hover:hover {
         transform: scale(1.1);
         border-color: var(--accent) !important;
-        box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+        box-shadow: 0 0 15px rgba(255, 204, 0, 0.4);
     }
+
+    .cast-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .cast-card:hover { transform: translateY(-5px); border-color: var(--accent) !important; }
+
+    .cast-img-container { height: 180px; position: relative; background: #000; }
+    .cast-img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+
+    .cast-out-overlay {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%) rotate(-15deg);
+        background: #dc2626; color: white;
+        font-weight: 900; padding: 5px 10px; border: 2px solid white;
+        font-size: 0.7rem; z-index: 2;
+    }
+
+    .pointer { cursor: pointer; }
+    .ls-2 { letter-spacing: 2px; }
 </style>
+
+<script>
+    function showQuickLook(event, name, img, season, details, identifier) {
+        if (event) { event.preventDefault(); }
+        document.getElementById('modalName').innerText = name;
+        document.getElementById('modalImg').src = img;
+        document.getElementById('modalSeason').innerText = "Original Season: " + season;
+        document.getElementById('modalDetails').innerText = details;
+        document.getElementById('modalProfileBtn').href = `/player/${identifier}`;
+
+        const modalEl = document.getElementById('quickLookModal');
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+</script>
 {% endblock %}
