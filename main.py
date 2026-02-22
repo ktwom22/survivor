@@ -654,6 +654,12 @@ def nuke_and_pave():
     sync_players()
     return "Database reset! <a href='/'>Go Home</a>"
 
+@app.route('/admin/force-fix')
+def manual_fix():
+    if 'user_id' not in session:
+        return "Unauthorized", 401
+    fix_mystery_players()
+    return "Cleanup complete. Mystery players have been swapped for random real players. <a href='/'>Go Home</a>"
 
 # --- MIGRATION & STARTUP BLOCK ---
 with app.app_context():
@@ -671,6 +677,8 @@ with app.app_context():
             sync_players()
         except Exception as e:
             print(f"Startup Migration Error: {e}")
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
