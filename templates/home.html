@@ -19,14 +19,14 @@
                         <div class="h4 m-0 fw-900 text-white">{{ total_global_entrants }}</div>
                     </div>
                     <div class="px-3 py-2 bg-black-50 border border-secondary rounded backdrop-blur">
-                        <div class="x-small fw-900 text-accent uppercase">Season Status</div>
-                        <div class="h4 m-0 fw-900 text-white">LIVE</div>
+                        <div class="x-small fw-900 text-accent uppercase">Draft Status</div>
+                        <div class="h4 m-0 fw-900 text-white">OPEN</div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-center gap-3">
-                    <a href="#cast-section" class="btn btn-outline-light fw-900 uppercase ls-1 px-4 border-2 py-2">
-                        Meet the Cast
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="{{ url_for('draft_trends') }}" class="btn btn-outline-accent fw-900 uppercase ls-1 px-4 border-2 py-2">
+                        <i class="fas fa-chart-bar me-2"></i>Draft Kit
                     </a>
                     {% if not user_in_global %}
                         <form action="{{ url_for('join_global') }}" method="POST" class="m-0">
@@ -81,9 +81,20 @@
                         <div class="display-1 fw-900 text-accent mb-0">S50</div>
                         <div class="fw-900 uppercase ls-2 text-white">Global Champion</div>
                         <div class="mt-3 x-small text-accent fw-900 italic">EARN THE ULTIMATE TITLE</div>
+                        <hr class="border-secondary">
+                        <p class="x-small text-white-50 uppercase fw-900">Curious about the competition?</p>
+                        <a href="{{ url_for('global_leaderboard') }}" class="text-accent fw-900 text-decoration-none">View Standings →</a>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="pro-card border-secondary bg-black-50 mb-5 p-4 text-center">
+            <h4 class="fw-900 uppercase text-white mb-2">Master the Draft</h4>
+            <p class="text-white-50 small mb-4">See who the most popular picks are and scout the Season 50 cast before locking in your tribe.</p>
+            <a href="{{ url_for('draft_trends') }}" class="btn btn-outline-accent fw-900 uppercase ls-1">
+                Open Draft Kit & Analytics
+            </a>
         </div>
 
         <hr class="border-secondary mb-5" style="opacity: 1 !important; border-width: 2px;">
@@ -184,33 +195,13 @@
     </div>
 </div>
 
-<div class="modal fade" id="rulesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title fw-900 uppercase">Scoring Rules</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <div class="p-3 bg-darker border border-secondary rounded mb-3">
-                    <h6 class="text-accent fw-900 mb-3">STANDARD POINT SYSTEM</h6>
-                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Survive Episode</span><span class="text-accent">+2.0</span></div>
-                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Win Immunity</span><span class="text-accent">+5.0</span></div>
-                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Confessional Cry</span><span class="text-accent">+2.0</span></div>
-                    <div class="d-flex justify-content-between mb-1 small fw-bold"><span>Advantage Found</span><span class="text-accent">+4.0</span></div>
-                    <div class="d-flex justify-content-between mb-1 small fw-bold text-danger"><span>Quit Game</span><span>-25.0</span></div>
-                </div>
-                <p class="small text-white-50 italic">Draft your tribe at dropbuffs.com</p>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
     :root { --ocean: #0ea5e9; }
     .bg-darker { background: #0c0c0c; }
     .backdrop-blur { backdrop-filter: blur(8px); background: rgba(0,0,0,0.4); }
     .btn-ocean { background-color: var(--ocean); color: white; border: none; font-weight: 900; }
+    .btn-outline-accent { border: 2px solid var(--accent); color: var(--accent); background: transparent; }
+    .btn-outline-accent:hover { background: var(--accent); color: black; }
     .hover-glow:hover { border-color: var(--accent) !important; background: #111; transition: 0.2s; }
     .pointer { cursor: pointer; }
     .cast-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -250,7 +241,9 @@
                 });
             } catch (err) {}
         } else {
-            new bootstrap.Modal(document.getElementById('rulesModal')).show();
+            // Logic to trigger modal manually if share fails
+            const rulesModal = new bootstrap.Modal(document.getElementById('rulesModal'));
+            rulesModal.show();
         }
     }
 </script>
