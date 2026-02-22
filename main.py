@@ -1,4 +1,4 @@
-import os, uuid, requests, csv, json, resend
+import os, uuid, requests, csv, json, resend, random
 from io import StringIO
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, Response
@@ -108,6 +108,58 @@ class Roster(db.Model):
 
 
 # --- HELPERS ---
+
+def fix_mystery_players():
+    """Finds any rosters with mystery players and swaps them for real ones."""
+    mystery_players = Survivor.query.filter(Survivor.name.ilike('%mystery%')).all()
+    mystery_ids = [p.id for p in mystery_players]
+    if not mystery_ids: return
+
+    real_players = Survivor.query.filter(~Survivor.name.ilike('%mystery%')).all()
+    all_rosters = Roster.query.all()
+
+    for r in all_rosters:
+        changed = False
+        # Collect existing tribe IDs to prevent duplicates
+        tribe_ids = []
+        if r.cap1_id: tribe_ids.append(r.cap1_id)
+        if r.cap2_id: tribe_ids.append(r.cap2_id)
+        if r.cap3_id: tribe_ids.append(r.cap3_id)
+        if r.regular_ids:
+            tribe_ids.extend([int(x) for x in r.regular_ids.split(',') if x.strip()])
+
+        def get_rand_replacement(current_tribe):
+            pool = [p.id for p in real_players if p.id not in current_tribe]
+            return random.choice(pool) if pool else None
+
+        if r.cap1_id in mystery_ids:
+            r.cap1_id = get_rand_replacement(tribe_ids)
+            changed = True
+        if r.cap2_id in mystery_ids:
+            r.cap2_id = get_rand_replacement(tribe_ids)
+            changed = True
+        if r.cap3_id in mystery_ids:
+            r.cap3_id = get_rand_replacement(tribe_ids)
+            changed = True
+
+        if r.regular_ids:
+            regs = r.regular_ids.split(',')
+            new_regs = []
+            for rid in regs:
+                if rid.strip() and int(rid) in mystery_ids:
+                    new_id = get_rand_replacement(tribe_ids)
+                    if new_id:
+                        new_regs.append(str(new_id))
+                        tribe_ids.append(new_id)
+                        changed = True
+                else:
+                    new_regs.append(rid)
+            r.regular_ids = ",".join(new_regs)
+
+    if changed:
+        db.session.commit()
+
+
 def sync_players():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQoYLaaQ7OnWbEiHpJo27v0PUzp6r_ufLCHgpYB5kdHluNOgQilvIsZNU_pp78nda4Jd5Vislg1VYbO/pub?gid=0&single=true&output=csv"
     try:
@@ -130,6 +182,8 @@ def sync_players():
             p.details = row.get('Details', '').strip()
             if p.points is None: p.points = 0.0
         db.session.commit()
+        # Clean up mystery picks after sync
+        fix_mystery_players()
     except Exception as e:
         print(f"Sync error: {e}")
 
@@ -180,7 +234,8 @@ def process_pending_tribe(user_id):
 
 @app.route('/')
 def index():
-    all_cast = Survivor.query.all()
+    # Filter out mystery players from the home page cast list
+    all_cast = Survivor.query.filter(~Survivor.name.ilike('%mystery%')).all()
     leagues = []
     user_in_global = False
     if 'user_id' in session:
@@ -350,8 +405,12 @@ def league_dashboard(code):
         key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
+
+    # Exclude mystery players from available options
+    available_pool = Survivor.query.filter_by(is_out=False).filter(~Survivor.name.ilike('%mystery%')).all()
+
     return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r),
-                           target_username=target_username, available=Survivor.query.filter_by(is_out=False).all(),
+                           target_username=target_username, available=available_pool,
                            league_pts=l_pts, get_roster_data=get_roster_data)
 
 
@@ -383,6 +442,7 @@ def join_global():
         db.session.commit()
         flash("Welcome to the Global Season! Time to draft your tribe.", "success")
     return redirect(url_for('global_draft_page'))
+
 
 @app.route('/global')
 @app.route('/global-leaderboard')
@@ -422,7 +482,9 @@ def global_draft_page():
     if 'user_id' in session:
         roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
 
-    available = Survivor.query.filter_by(is_out=False).all()
+    # Filter out mystery players so new users can't draft them
+    available = Survivor.query.filter_by(is_out=False).filter(~Survivor.name.ilike('%mystery%')).all()
+
     return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG,
                            get_roster_data=get_roster_data)
 
@@ -563,7 +625,9 @@ def draft_trends():
     if total_count == 0:
         return render_template('trends.html', stats=[], total_users=0,
                                error="No completed drafts found yet.")
-    all_survivors = Survivor.query.all()
+
+    # Exclude mystery players from analytics
+    all_survivors = Survivor.query.filter(~Survivor.name.ilike('%mystery%')).all()
     stats_list = []
     for s in all_survivors:
         gold_picks = sum(1 for r in submitted_rosters if r.cap1_id == s.id)
@@ -594,6 +658,9 @@ def nuke_and_pave():
 # --- MIGRATION & STARTUP BLOCK ---
 with app.app_context():
     db.create_all()
+    # Auto-fix any mystery players in rosters on startup
+    fix_mystery_players()
+
     try:
         db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
     except Exception:
