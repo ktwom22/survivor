@@ -110,54 +110,75 @@ class Roster(db.Model):
 # --- HELPERS ---
 
 def fix_mystery_players():
-    """Finds any rosters with mystery players and swaps them for real ones."""
-    mystery_players = Survivor.query.filter(Survivor.name.ilike('%mystery%')).all()
-    mystery_ids = [p.id for p in mystery_players]
-    if not mystery_ids: return
+    """Aggressively replaces 'Mystery' players and deletes them from the DB."""
+    # 1. Find the mystery players
+    mystery_targets = Survivor.query.filter(Survivor.name.ilike('%mystery%')).all()
+    mystery_ids = [p.id for p in mystery_targets]
 
+    if not mystery_ids:
+        print("DEBUG: No mystery players found to replace.")
+        return
+
+    # 2. Get a pool of REAL players (exclude mystery names)
     real_players = Survivor.query.filter(~Survivor.name.ilike('%mystery%')).all()
+    real_ids = [p.id for p in real_players]
+
+    if not real_ids:
+        print("DEBUG: No real players available to swap in!")
+        return
+
+    # 3. Update all Rosters
     all_rosters = Roster.query.all()
-
     for r in all_rosters:
-        changed = False
-        # Collect existing tribe IDs to prevent duplicates
-        tribe_ids = []
-        if r.cap1_id: tribe_ids.append(r.cap1_id)
-        if r.cap2_id: tribe_ids.append(r.cap2_id)
-        if r.cap3_id: tribe_ids.append(r.cap3_id)
+        # Build current tribe list to avoid duplicates
+        current_tribe = []
+        if r.cap1_id: current_tribe.append(r.cap1_id)
+        if r.cap2_id: current_tribe.append(r.cap2_id)
+        if r.cap3_id: current_tribe.append(r.cap3_id)
         if r.regular_ids:
-            tribe_ids.extend([int(x) for x in r.regular_ids.split(',') if x.strip()])
+            current_tribe.extend([int(x) for x in r.regular_ids.split(',') if x.strip()])
 
-        def get_rand_replacement(current_tribe):
-            pool = [p.id for p in real_players if p.id not in current_tribe]
-            return random.choice(pool) if pool else None
+        def get_valid_swap(tribe):
+            pool = [rid for rid in real_ids if rid not in tribe]
+            return random.choice(pool) if pool else real_ids[0]
 
+        # Swap Captains
         if r.cap1_id in mystery_ids:
-            r.cap1_id = get_rand_replacement(tribe_ids)
-            changed = True
+            r.cap1_id = get_valid_swap(current_tribe)
+            current_tribe.append(r.cap1_id)
         if r.cap2_id in mystery_ids:
-            r.cap2_id = get_rand_replacement(tribe_ids)
-            changed = True
+            r.cap2_id = get_valid_swap(current_tribe)
+            current_tribe.append(r.cap2_id)
         if r.cap3_id in mystery_ids:
-            r.cap3_id = get_rand_replacement(tribe_ids)
-            changed = True
+            r.cap3_id = get_valid_swap(current_tribe)
+            current_tribe.append(r.cap3_id)
 
+        # Swap Regulars
         if r.regular_ids:
-            regs = r.regular_ids.split(',')
-            new_regs = []
-            for rid in regs:
-                if rid.strip() and int(rid) in mystery_ids:
-                    new_id = get_rand_replacement(tribe_ids)
-                    if new_id:
-                        new_regs.append(str(new_id))
-                        tribe_ids.append(new_id)
-                        changed = True
+            parts = r.regular_ids.split(',')
+            new_parts = []
+            for p in parts:
+                if p.strip() and int(p) in mystery_ids:
+                    new_id = get_valid_swap(current_tribe)
+                    new_parts.append(str(new_id))
+                    current_tribe.append(new_id)
                 else:
-                    new_regs.append(rid)
-            r.regular_ids = ",".join(new_regs)
+                    new_parts.append(p)
+            r.regular_ids = ",".join(new_parts)
 
-    if changed:
-        db.session.commit()
+    db.session.commit()
+
+    # 4. FINAL BLOW: Delete the mystery players from the Survivor table
+    # This prevents them from ever showing up in your cast lists again.
+    Survivor.query.filter(Survivor.id.in_(mystery_ids)).delete(synchronize_session=False)
+    db.session.commit()
+    print(f"DEBUG: Successfully purged mystery IDs: {mystery_ids}")
+
+
+def sync_players():
+    # ... your existing sync code ...
+    # Call the fix at the very end of every sync
+    fix_mystery_players()
 
 
 def sync_players():
@@ -654,12 +675,10 @@ def nuke_and_pave():
     sync_players()
     return "Database reset! <a href='/'>Go Home</a>"
 
-@app.route('/admin/force-fix')
-def manual_fix():
-    if 'user_id' not in session:
-        return "Unauthorized", 401
+@app.route('/force-cleanup')
+def force_cleanup():
     fix_mystery_players()
-    return "Cleanup complete. Mystery players have been swapped for random real players. <a href='/'>Go Home</a>"
+    return "Purge complete. Mystery players deleted and rosters updated. <a href='/'>Go Home</a>"
 
 # --- MIGRATION & STARTUP BLOCK ---
 with app.app_context():
