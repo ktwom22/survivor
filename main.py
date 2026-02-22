@@ -384,7 +384,7 @@ def join_global():
         flash("Welcome to the Global Season! Time to draft your tribe.", "success")
     return redirect(url_for('global_draft_page'))
 
-
+@app.route('/global')
 @app.route('/global-leaderboard')
 def global_leaderboard():
     global_rosters = Roster.query.filter_by(is_global=True).all()
