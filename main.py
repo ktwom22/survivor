@@ -1,6 +1,6 @@
 import os, uuid, requests, csv, json, resend, random
 from io import StringIO
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -24,13 +24,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///survivor_v7.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# --- GLOBAL DEFAULTS ---
+# --- GLOBAL DEFAULTS & LOCKS ---
 POINTS_CONFIG = {
     "survive_episode": 2.0, "win_immunity": 5.0, "win_reward": 2.0,
     "found_advantage": 4.0, "made_merge": 5.0, "final_five": 8.0,
     "final_three": 12.0, "winner": 20.0, "confessional_cry": 2.0,
     "in_pocket": -5.0, "journey": 3.0, "quit_game": -25.0
 }
+
+# Survivor 50 Premiere: Feb 25, 2026 8PM EST = Feb 26, 2026 1AM UTC
+LOCK_DATETIME = datetime(2026, 2, 26, 1, 0, tzinfo=timezone.utc)
 
 
 # --- MODELS ---
@@ -108,6 +111,11 @@ class Roster(db.Model):
 
 
 # --- HELPERS ---
+
+def is_locked():
+    """Checks if the current time is past the Survivor 50 premiere lock."""
+    return datetime.now(timezone.utc) > LOCK_DATETIME
+
 
 def get_latest_media():
     """Returns a list of recent Survivor YouTube videos for the homepage."""
@@ -187,6 +195,10 @@ def calculate_roster_score(roster, pts_config):
 
 def process_pending_tribe(user_id):
     """Helper to save a draft after registration/login"""
+    if is_locked():
+        session.pop('pending_tribe', None)
+        return False
+
     if 'pending_tribe' in session:
         picks = session.pop('pending_tribe')
         r = Roster.query.filter_by(user_id=user_id, is_global=True).first() or Roster(user_id=user_id, is_global=True)
@@ -224,7 +236,7 @@ def index():
 
     return render_template('home.html', user_leagues=leagues, cast=all_cast, global_top_5=global_top_5,
                            total_global_entrants=len(global_rosters), user_in_global=user_in_global,
-                           media=media_items)
+                           media=media_items, is_locked=is_locked())
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -380,12 +392,17 @@ def league_dashboard(code):
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
     return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r),
                            target_username=target_username, available=Survivor.query.filter_by(is_out=False).all(),
-                           league_pts=l_pts, get_roster_data=get_roster_data)
+                           league_pts=l_pts, get_roster_data=get_roster_data, is_locked=is_locked())
 
 
 @app.route('/draft/<code>', methods=['POST'])
 def draft(code):
     if 'user_id' not in session: return redirect(url_for('login'))
+
+    if is_locked():
+        flash("The tribe has spoken! Rosters are locked for the premiere.", "danger")
+        return redirect(url_for('league_dashboard', code=code))
+
     l = League.query.filter_by(invite_code=code).first_or_404()
     r = Roster.query.filter_by(league_id=l.id, user_id=session['user_id']).first()
     if r:
@@ -453,11 +470,15 @@ def global_draft_page():
 
     available = Survivor.query.filter_by(is_out=False).all()
     return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG,
-                           get_roster_data=get_roster_data)
+                           get_roster_data=get_roster_data, is_locked=is_locked())
 
 
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
+    if is_locked():
+        flash("Drafting is closed! The Survivor 50 premiere has started.", "danger")
+        return redirect(url_for('index'))
+
     picks = {
         'cap1': request.form.get('cap1'),
         'cap2': request.form.get('cap2'),
