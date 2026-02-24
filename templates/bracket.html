@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    :root {
+        --bracket-gold: #FFD700;
+        --bracket-bg: #1a1a1a;
+        --match-width: 180px;
+    }
+
+    .bracket-container {
+        display: flex;
+        overflow-x: auto;
+        padding: 40px;
+        background-color: var(--bracket-bg);
+        gap: 40px;
+        min-height: 800px;
+    }
+
+    .round {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        list-style: none;
+        padding: 0;
+    }
+
+    .match {
+        display: flex;
+        flex-direction: column;
+        width: var(--match-width);
+        margin: 10px 0;
+        border: 1px solid #444;
+        background: #222;
+        border-radius: 4px;
+        position: relative;
+    }
+
+    /* Connecting Lines */
+    .match::after {
+        content: "";
+        position: absolute;
+        right: -20px;
+        top: 50%;
+        width: 20px;
+        height: 2px;
+        background: #444;
+    }
+
+    .round:last-child .match::after { display: none; }
+
+    .slot {
+        padding: 8px;
+        color: #eee;
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 0.9rem;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .slot:first-child { border-bottom: 1px solid #333; }
+
+    .slot:hover { background: #333; }
+
+    .slot.selected {
+        background: var(--bracket-gold) !important;
+        color: #000 !important;
+        font-weight: bold;
+    }
+
+    .slot.winner-actual {
+        border-left: 4px solid #28a745;
+    }
+
+    .bracket-header {
+        background: #000;
+        padding: 20px;
+        border-bottom: 3px solid var(--bracket-gold);
+        text-align: center;
+    }
+
+    .lock-banner {
+        background: #dc3545;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
+
+<div class="bracket-header">
+    <h1 style="color: var(--bracket-gold);">TOURNAMENT BRACKET</h1>
+    <p class="text-white">Predict the winners to earn bonus points!</p>
+</div>
+
+{% if is_locked %}
+<div class="lock-banner">
+    <i class="fas fa-lock"></i> THE TRIBE HAS SPOKEN: BRACKET IS LOCKED
+</div>
+{% endif %}
+
+<form action="{{ url_for('save_bracket', code=league.invite_code if league else 'global') }}" method="POST">
+    <div class="bracket-container">
+        
+        <div class="round">
+            <h3>Round of 32</h3>
+            {% for match in matches if match.stage == 'Round of 32' %}
+            <div class="match">
+                <input type="hidden" name="match_{{ match.id }}" id="input_{{ match.id }}" value="{{ picks.get(match.id, '') }}">
+                
+                <div class="slot {% if picks.get(match.id) == match.team_a_id %}selected{% endif %}" 
+                     onclick="selectWinner({{ match.id }}, {{ match.team_a_id or 0 }})">
+                    {{ match.team_a.name if match.team_a else "TBD" }}
+                </div>
+                
+                <div class="slot {% if picks.get(match.id) == match.team_b_id %}selected{% endif %}" 
+                     onclick="selectWinner({{ match.id }}, {{ match.team_b_id or 0 }})">
+                    {{ match.team_b.name if match.team_b else "TBD" }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="round">
+            <h3>Round of 16</h3>
+            {% for match in matches if match.stage == 'Round of 16' %}
+            <div class="match">
+                <div class="slot">Winner M#{{ match.match_number }}</div>
+                <div class="slot">Winner M#{{ match.match_number + 1 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="round">
+            <h3>Quarter-Finals</h3>
+            <div class="match"><div class="slot">TBD</div><div class="slot">TBD</div></div>
+            <div class="match"><div class="slot">TBD</div><div class="slot">TBD</div></div>
+        </div>
+
+        <div class="round">
+            <h3>The Final</h3>
+            <div class="match" style="border: 2px solid var(--bracket-gold);">
+                <div class="slot">TBD</div>
+                <div class="slot">TBD</div>
+            </div>
+        </div>
+
+    </div>
+
+    {% if not is_locked %}
+    <div class="p-4 text-center">
+        <button type="submit" class="btn btn-lg btn-warning" style="width: 300px; font-weight: bold;">
+            SAVE BRACKET
+        </button>
+    </div>
+    {% endif %}
+</form>
+
+
+
+<script>
+function selectWinner(matchId, survivorId) {
+    if ("{{ is_locked }}" === "True") return;
+    
+    // Update Hidden Input
+    document.getElementById('input_' + matchId).value = survivorId;
+    
+    // UI Update: Toggle "selected" class
+    let matchDiv = document.getElementById('input_' + matchId).parentElement;
+    let slots = matchDiv.querySelectorAll('.slot');
+    
+    slots.forEach(slot => slot.classList.remove('selected'));
+    event.target.classList.add('selected');
+}
+</script>
+
+{% endblock %}
