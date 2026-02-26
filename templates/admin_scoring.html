@@ -14,7 +14,8 @@
             <div class="row mb-3 align-items-end g-2">
                 <div class="col-6 col-md-3">
                     <label class="x-small fw-900 uppercase text-white-50 mb-1 d-block">Week #</label>
-                    <input type="number" name="week_num" id="weekNum" class="form-control bg-black text-white border-secondary" value="{{ week }}" required>
+                    <input type="number" name="week_num" id="weekNum" class="form-control bg-black text-white border-secondary"
+                           value="{{ week }}" required onchange="window.location.href='{{ url_for('admin_scoring') }}?week=' + this.value">
                 </div>
                 <div class="col-12 col-md-9 text-md-end">
                     <div class="d-flex flex-wrap gap-1 justify-content-md-end">
@@ -50,24 +51,40 @@
                     </thead>
                     <tbody>
                         {% for s in survivors if not s.is_out %}
+                        {# Get existing stats for this specific survivor from the dictionary sent by Python #}
+                        {% set s_stat = current_stats.get(s.id) %}
                         <tr class="border-bottom border-secondary-subtle">
                             <td class="sticky-col bg-black fw-bold text-white small">{{ s.name.split(' ')[0] }}</td>
                             <td class="text-center text-accent fw-bold small" id="total-{{ s.id }}">{{ s.points|round(1) }}</td>
 
-                            <td class="text-center p-2"><input type="checkbox" name="voted_out_{{ s.id }}" class="form-check-input border-danger"></td>
+                            <td class="text-center p-2">
+                                <input type="checkbox" name="voted_out_{{ s.id }}" class="form-check-input border-danger">
+                            </td>
 
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="survived" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="immunity" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="reward" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="advantage" class="form-check-input ajax-score border-accent"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="journey" class="form-check-input ajax-score border-info"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="in_pocket" class="form-check-input ajax-score border-warning"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="merge" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f5" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f3" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="winner" class="form-check-input ajax-score border-accent"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="crying" class="form-check-input ajax-score border-info"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="quit" class="form-check-input ajax-score border-danger"></td>
+                            {# Helper to render boxes that 'stick' based on DB state #}
+                            {% macro render_box(prop, extra_class='') %}
+                            <td class="text-center p-2">
+                                <input type="checkbox"
+                                       data-pid="{{ s.id }}"
+                                       data-cat="{{ prop }}"
+                                       class="form-check-input ajax-score {{ extra_class }}"
+                                       {{ 'checked' if s_stat and getattr(s_stat, prop) else '' }}
+                                       {{ 'disabled' if is_locked }}>
+                            </td>
+                            {% endmacro %}
+
+                            {{ render_box('survived') }}
+                            {{ render_box('immunity') }}
+                            {{ render_box('reward') }}
+                            {{ render_box('advantage', 'border-accent') }}
+                            {{ render_box('journey', 'border-info') }}
+                            {{ render_box('in_pocket', 'border-warning') }}
+                            {{ render_box('merge') }}
+                            {{ render_box('f5') }}
+                            {{ render_box('f3') }}
+                            {{ render_box('winner', 'border-accent') }}
+                            {{ render_box('crying', 'border-info') }}
+                            {{ render_box('quit', 'border-danger') }}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -75,7 +92,11 @@
             </div>
 
             <div class="mt-3 sticky-bottom bg-black py-2">
-                <button type="submit" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2 shadow-lg">Finalize & Lock Week 🔒</button>
+                {% if is_locked %}
+                    <div class="alert alert-warning fw-900 text-center uppercase py-3 m-0">Week {{ week }} is Locked 🔒</div>
+                {% else %}
+                    <button type="submit" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2 shadow-lg">Finalize & Lock Week 🔒</button>
+                {% endif %}
             </div>
         </form>
     </div>
@@ -103,6 +124,7 @@
         cursor: pointer;
     }
 
+    .form-check-input:disabled { opacity: 0.3; cursor: not-allowed; }
     .form-check-input.border-warning:checked { background-color: #ffc107; border-color: #fff; }
     .form-check-input.border-accent:checked { background-color: var(--accent); border-color: #fff; }
     .form-check-input.border-info:checked { background-color: #0dcaf0; border-color: #fff; }
@@ -128,14 +150,12 @@
     // 1. AJAX SCORING LOGIC
     document.querySelectorAll('.ajax-score').forEach(input => {
         input.addEventListener('change', async function() {
-            const row = this.closest('tr');
+            if (this.disabled) return;
+
             const pId = this.dataset.pid;
             const cat = this.dataset.cat;
             const isChecked = this.checked;
             const week = document.getElementById('weekNum').value;
-
-            // Visual feedback
-            this.parentElement.style.backgroundColor = isChecked ? 'rgba(255,204,0,0.15)' : 'transparent';
 
             try {
                 const response = await fetch("{{ url_for('admin_scoring') }}", {
@@ -151,11 +171,10 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    // Update the "Pts" column immediately
                     document.getElementById(`total-${pId}`).innerText = result.new_total;
                 } else {
-                    alert("Error updating score: " + (result.error || "Unknown error"));
-                    this.checked = !isChecked; // Revert on failure
+                    alert("Error: " + (result.error || "Unknown error"));
+                    this.checked = !isChecked;
                 }
             } catch (err) {
                 console.error("AJAX Error:", err);
@@ -171,9 +190,8 @@
             if (e.target.type === 'checkbox') return;
 
             const cb = this.querySelector('input[type="checkbox"]');
-            if (cb) {
+            if (cb && !cb.disabled) {
                 cb.checked = !cb.checked;
-                // Manually trigger the 'change' event for AJAX
                 cb.dispatchEvent(new Event('change'));
             }
         });
