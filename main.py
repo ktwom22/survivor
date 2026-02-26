@@ -738,7 +738,7 @@ def fix_tperrier():
     # Captain 3: 22
     # Regulars: 23, 18, 15
 
-    roster.cap1_id = 23  # Assuming 23 is the Gold Captain
+    roster.cap1_id = 3  # Assuming 23 is the Gold Captain
     roster.cap2_id = 17  # Silver
     roster.cap3_id = 22  # Bronze
 
