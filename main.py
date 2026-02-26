@@ -1,7 +1,8 @@
 import os, uuid, requests, csv, json, resend, random
 from io import StringIO
 from datetime import datetime, timezone, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, Response, \
+    jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
@@ -74,6 +75,7 @@ class WeeklyStat(db.Model):
     winner = db.Column(db.Boolean, default=False)
     crying = db.Column(db.Boolean, default=False)
     quit = db.Column(db.Boolean, default=False)
+    is_locked = db.Column(db.Boolean, default=False)
 
     def calculate_for_league(self, league_pts):
         t = 0
@@ -545,6 +547,38 @@ def admin_scoring():
             session['admin_authenticated'] = True
             return redirect(url_for('admin_scoring'))
         return render_template('admin_login.html')
+
+    # --- 1. HANDLE AJAX LIVE UPDATES ---
+    if request.method == 'POST' and request.is_json:
+        data = request.json
+        p_id = data.get('player_id')
+        cat = data.get('category')
+        state = data.get('state')
+        wn = int(data.get('week', 1))
+
+        # Check for existing stat for this week
+        stat = WeeklyStat.query.filter_by(player_id=p_id, week=wn).first() or WeeklyStat(player_id=p_id, week=wn)
+        if not stat.id:
+            db.session.add(stat)
+
+        # Safety check: Prevent updates if week is locked
+        if stat.is_locked:
+            return jsonify({"success": False, "error": "Week is locked"}), 403
+
+        if hasattr(stat, cat):
+            setattr(stat, cat, state)
+            db.session.commit()
+
+            # RE-CALCULATE POINTS IMMEDIATELY
+            p = db.session.get(Survivor, p_id)
+            all_stats = WeeklyStat.query.filter_by(player_id=p_id).all()
+            p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in all_stats)
+            db.session.commit()
+
+            return jsonify({"success": True, "new_total": round(p.points, 1)})
+        return jsonify({"success": False}), 400
+
+    # --- 2. HANDLE FULL PAGE SYNC OR WEEK LOCKING ---
     survivors = Survivor.query.all()
     if request.method == 'POST':
         if 'sync_all' in request.form:
@@ -553,25 +587,28 @@ def admin_scoring():
             wn = int(request.form.get('week_num', 1))
             for s in survivors:
                 if request.form.get(f'voted_out_{s.id}'): s.is_out = True
-                stat = WeeklyStat(
-                    player_id=s.id,
-                    week=wn,
-                    survived=request.form.get(f'surv_{s.id}') == 'on',
-                    immunity=request.form.get(f'imm_{s.id}') == 'on',
-                    reward=request.form.get(f'rew_{s.id}') == 'on',
-                    advantage=request.form.get(f'adv_{s.id}') == 'on',
-                    journey=request.form.get(f'jour_{s.id}') == 'on',
-                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on',
-                    crying=request.form.get(f'cry_{s.id}') == 'on'
-                )
-                if s.points is None: s.points = 0.0
-                s.points += stat.calculate_for_league(POINTS_CONFIG)
-                db.session.add(stat)
+                # Finalize: Lock the week's stats
+                stat = WeeklyStat.query.filter_by(player_id=s.id, week=wn).first()
+                if stat:
+                    stat.is_locked = True
             db.session.commit()
-            flash(f"Week {wn} results published!")
-        return redirect(url_for('admin_scoring'))
-    return render_template('admin_login.html' if not session.get('admin_authenticated') else 'admin_scoring.html',
-                           survivors=survivors, config=POINTS_CONFIG)
+            flash(f"Week {wn} results published and locked!")
+        return redirect(url_for('admin_scoring', week=request.form.get('week_num', 1)))
+
+    # --- 3. PAGE DISPLAY LOGIC ---
+    view_week = int(request.args.get('week', 1))
+    is_locked_week = False
+    try:
+        locked_check = WeeklyStat.query.filter_by(week=view_week, is_locked=True).first()
+        is_locked_week = locked_check is not None
+    except:
+        db.session.rollback()
+
+    return render_template('admin_scoring.html',
+                           survivors=survivors,
+                           config=POINTS_CONFIG,
+                           week=view_week,
+                           is_locked=is_locked_week)
 
 
 @app.route('/robots.txt')
@@ -732,20 +769,10 @@ def fix_walshymon():
     if not roster:
         return "Roster 156 not found.", 404
 
-    # Based on your input:
-    # Captain 1: 4
-    # Captain 2: 2
-    # Captain 3: 11
-    # Regulars: 8, 13, 19
-
     roster.cap1_id = 4  # Gold
     roster.cap2_id = 2  # Silver
     roster.cap3_id = 11  # Bronze
-
-    # Store the regular IDs string
     roster.regular_ids = "8,13,19"
-
-    # Ensure link to League 14
     roster.league_id = 14
     roster.is_global = False
 
@@ -765,9 +792,11 @@ def fix_walshymon():
         db.session.rollback()
         return f"Database Error: {str(e)}"
 
+
 # --- MIGRATION & STARTUP BLOCK ---
 with app.app_context():
     db.create_all()
+    # Migration: Add slug if missing
     try:
         db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
     except Exception:
@@ -777,7 +806,18 @@ with app.app_context():
             db.session.commit()
             sync_players()
         except Exception as e:
-            print(f"Startup Migration Error: {e}")
+            print(f"Slug Migration Error: {e}")
+
+    # Migration: Add is_locked to WeeklyStat if missing
+    try:
+        db.session.execute(text("SELECT is_locked FROM weekly_stat LIMIT 1"))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE weekly_stat ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
+            db.session.commit()
+        except Exception as e:
+            print(f"Is_Locked Migration Error: {e}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
