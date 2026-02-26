@@ -32,6 +32,7 @@ POINTS_CONFIG = {
     "in_pocket": -5.0, "journey": 3.0, "quit_game": -25.0
 }
 
+# STATUS: LOCKED
 # Survivor 50 Premiere: Feb 25, 2026 8PM EST = Feb 26, 2026 1AM UTC
 LOCK_DATETIME = datetime(2026, 2, 26, 1, 0, tzinfo=timezone.utc)
 
