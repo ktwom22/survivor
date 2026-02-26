@@ -14,7 +14,9 @@
             <div class="row mb-3 align-items-end g-2">
                 <div class="col-6 col-md-3">
                     <label class="x-small fw-900 uppercase text-white-50 mb-1 d-block">Week #</label>
-                    <input type="number" name="week_num" id="weekNum" class="form-control bg-black text-white border-secondary" value="{{ week }}" required>
+                    <input type="number" name="week_num" id="weekNum" class="form-control bg-black text-white border-secondary"
+                           value="{{ week }}" required
+                           onchange="window.location.href='{{ url_for('admin_scoring') }}?week=' + this.value">
                 </div>
                 <div class="col-12 col-md-9 text-md-end">
                     <div class="d-flex flex-wrap gap-1 justify-content-md-end">
@@ -50,24 +52,25 @@
                     </thead>
                     <tbody>
                         {% for s in survivors if not s.is_out %}
+                        {% set stat = current_stats.get(s.id) %}
                         <tr class="border-bottom border-secondary-subtle">
                             <td class="sticky-col bg-black fw-bold text-white small">{{ s.name.split(' ')[0] }}</td>
                             <td class="text-center text-accent fw-bold small" id="total-{{ s.id }}">{{ s.points|round(1) }}</td>
 
                             <td class="text-center p-2"><input type="checkbox" name="voted_out_{{ s.id }}" class="form-check-input border-danger"></td>
 
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="survived" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="immunity" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="reward" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="advantage" class="form-check-input ajax-score border-accent"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="journey" class="form-check-input ajax-score border-info"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="in_pocket" class="form-check-input ajax-score border-warning"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="merge" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f5" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f3" class="form-check-input ajax-score"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="winner" class="form-check-input ajax-score border-accent"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="crying" class="form-check-input ajax-score border-info"></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="quit" class="form-check-input ajax-score border-danger"></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="survived" class="form-check-input ajax-score" {{ 'checked' if stat and stat.survived else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="immunity" class="form-check-input ajax-score" {{ 'checked' if stat and stat.immunity else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="reward" class="form-check-input ajax-score" {{ 'checked' if stat and stat.reward else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="advantage" class="form-check-input ajax-score border-accent" {{ 'checked' if stat and stat.advantage else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="journey" class="form-check-input ajax-score border-info" {{ 'checked' if stat and stat.journey else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="in_pocket" class="form-check-input ajax-score border-warning" {{ 'checked' if stat and stat.in_pocket else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="merge" class="form-check-input ajax-score" {{ 'checked' if stat and stat.merge else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f5" class="form-check-input ajax-score" {{ 'checked' if stat and stat.f5 else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f3" class="form-check-input ajax-score" {{ 'checked' if stat and stat.f3 else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="winner" class="form-check-input ajax-score border-accent" {{ 'checked' if stat and stat.winner else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="crying" class="form-check-input ajax-score border-info" {{ 'checked' if stat and stat.crying else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="quit" class="form-check-input ajax-score border-danger" {{ 'checked' if stat and stat.quit else '' }}></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -82,98 +85,47 @@
 </div>
 
 <style>
-    .sticky-col {
-        position: sticky;
-        left: 0;
-        z-index: 5;
-        border-right: 2px solid #ffffff !important;
-        min-width: 80px;
-        max-width: 100px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .form-check-input {
-        width: 1.4rem;
-        height: 1.4rem;
-        background-color: #000;
-        border: 2px solid #555;
-        margin: 0;
-        cursor: pointer;
-    }
-
+    .sticky-col { position: sticky; left: 0; z-index: 5; border-right: 2px solid #ffffff !important; min-width: 80px; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .form-check-input { width: 1.4rem; height: 1.4rem; background-color: #000; border: 2px solid #555; margin: 0; cursor: pointer; }
     .form-check-input.border-warning:checked { background-color: #ffc107; border-color: #fff; }
-    .form-check-input.border-accent:checked { background-color: var(--accent); border-color: #fff; }
-    .form-check-input.border-info:checked { background-color: #0dcaf0; border-color: #fff; }
-    .form-check-input.border-danger:checked { background-color: #dc3545; border-color: #fff; }
-
-    .form-check-input:checked {
-        background-color: var(--accent);
-        border-color: #fff;
-    }
-
+    .form-check-input:checked { background-color: var(--accent); border-color: #fff; }
     td { cursor: pointer; transition: background 0.2s; }
     td:hover { background: rgba(255, 255, 255, 0.1) !important; }
-
     .table-responsive::-webkit-scrollbar { height: 6px; }
     .table-responsive::-webkit-scrollbar-thumb { background: var(--accent); }
-
-    @media (max-width: 768px) {
-        .pro-card { border-radius: 0; border-inline: none; }
-    }
 </style>
 
 <script>
-    // 1. AJAX SCORING LOGIC
     document.querySelectorAll('.ajax-score').forEach(input => {
         input.addEventListener('change', async function() {
-            const row = this.closest('tr');
             const pId = this.dataset.pid;
             const cat = this.dataset.cat;
             const isChecked = this.checked;
             const week = document.getElementById('weekNum').value;
 
-            // Visual feedback
-            this.parentElement.style.backgroundColor = isChecked ? 'rgba(255,204,0,0.15)' : 'transparent';
-
             try {
                 const response = await fetch("{{ url_for('admin_scoring') }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        player_id: pId,
-                        category: cat,
-                        state: isChecked,
-                        week: week
-                    })
+                    body: JSON.stringify({ player_id: pId, category: cat, state: isChecked, week: week })
                 });
-
                 const result = await response.json();
                 if (result.success) {
-                    // Update the "Pts" column immediately
                     document.getElementById(`total-${pId}`).innerText = result.new_total;
-                } else {
-                    alert("Error updating score: " + (result.error || "Unknown error"));
-                    this.checked = !isChecked; // Revert on failure
                 }
             } catch (err) {
-                console.error("AJAX Error:", err);
                 this.checked = !isChecked;
             }
         });
     });
 
-    // 2. CELL-CLICK TOGGLE
     document.querySelectorAll('#scoringTable td').forEach(cell => {
         cell.addEventListener('click', function(e) {
             if (this.classList.contains('sticky-col') || this.id.startsWith('total-')) return;
             if (e.target.type === 'checkbox') return;
-
             const cb = this.querySelector('input[type="checkbox"]');
             if (cb) {
                 cb.checked = !cb.checked;
-                // Manually trigger the 'change' event for AJAX
                 cb.dispatchEvent(new Event('change'));
             }
         });
