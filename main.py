@@ -722,37 +722,41 @@ def nuke_and_pave():
     return "Database reset! <a href='/'>Go Home</a>"
 
 
-@app.route('/admin/fix-cassidy')
-def fix_cassidy():
+@app.route('/admin/fix-tperrier')
+def fix_tperrier():
     if not session.get('admin_authenticated'):
         return "Unauthorized", 401
 
-    # Specifically target Roster 98
-    roster = db.session.get(Roster, 98)
+    # Specifically target Roster 158
+    roster = db.session.get(Roster, 158)
     if not roster:
-        return "Roster 98 not found in database.", 404
+        return "Roster 158 not found.", 404
 
-    # The IDs you provided: 2, 18, 17, 23, 13, 6
-    # Let's set the first three as the Captains (Gold, Silver, Bronze)
-    roster.cap1_id = 2
-    roster.cap2_id = 18
-    roster.cap3_id = 17
+    # Based on your input:
+    # Captain 1: (Not specified, setting to ID 23 to ensure it renders)
+    # Captain 2: 17
+    # Captain 3: 22
+    # Regulars: 23, 18, 15
 
-    # We keep the full list in regular_ids just to be safe
-    roster.regular_ids = "23,13,6"
+    roster.cap1_id = 23  # Assuming 23 is the Gold Captain
+    roster.cap2_id = 17  # Silver
+    roster.cap3_id = 22  # Bronze
 
-    # Ensure it is properly linked to the league and marked as private
+    # Store the regular IDs string
+    roster.regular_ids = "23,18,15"
+
+    # Ensure link to League 14
     roster.league_id = 14
     roster.is_global = False
 
     try:
         db.session.commit()
         return """
-            <h1>Cassidy's Lineup Fixed!</h1>
-            <p><b>Captains:</b> 2, 18, 17</p>
-            <p><b>Regulars:</b> 2, 18, 17, 23, 13, 6</p>
-            <p><b>League:</b> 14</p>
-            <a href='/league/COMEONIN'>View League Dashboard</a>
+            <h1>TPerrier9 Lineup Fixed!</h1>
+            <p><b>Roster ID:</b> 158</p>
+            <p><b>Captains:</b> 23, 17, 22</p>
+            <p><b>Regulars:</b> 23, 18, 15</p>
+            <a href='/league/COMEONIN'>Go to Dashboard</a>
         """
     except Exception as e:
         db.session.rollback()
