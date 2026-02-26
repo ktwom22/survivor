@@ -174,10 +174,14 @@ def get_roster_data(roster):
     c3 = db.session.get(Survivor, roster.cap3_id) if roster.cap3_id else None
     reg_list = []
     if roster.regular_ids:
-        for rid in roster.regular_ids.split(','):
-            if rid.strip():
+        # Split and filter out empty strings to prevent errors from trailing commas
+        ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
+        for rid in ids:
+            try:
                 player = db.session.get(Survivor, int(rid))
                 if player: reg_list.append(player)
+            except ValueError:
+                continue
     return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": reg_list}
 
 
@@ -631,6 +635,25 @@ def draft_trends():
             })
     stats_list = sorted(stats_list, key=lambda x: x['total_pct'], reverse=True)
     return render_template('trends.html', stats=stats_list, total_users=total_count)
+
+
+# --- SURGICAL ROSTER FIX ROUTE ---
+@app.route('/admin/force-add-player/<int:roster_id>/<int:player_id>')
+def force_add_player(roster_id, player_id):
+    if not session.get('admin_authenticated'):
+        return "Unauthorized", 401
+
+    roster = db.session.get(Roster, roster_id)
+    if not roster:
+        return "Roster not found", 404
+
+    current_ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
+    if str(player_id) not in current_ids:
+        current_ids.append(str(player_id))
+        roster.regular_ids = ",".join(current_ids)
+        db.session.commit()
+        return f"Success! Player {player_id} added. Total regulars: {len(current_ids)}"
+    return "Player already on roster."
 
 
 @app.route('/nuke_and_pave')
