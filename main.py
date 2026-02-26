@@ -739,7 +739,7 @@ def fix_cassidy():
     roster.cap3_id = 17
 
     # We keep the full list in regular_ids just to be safe
-    roster.regular_ids = "2,18,17,23,13,6"
+    roster.regular_ids = "23,13,6"
 
     # Ensure it is properly linked to the league and marked as private
     roster.league_id = 14
