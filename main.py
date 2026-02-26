@@ -643,18 +643,31 @@ def force_add_player(roster_id, player_id):
     if not session.get('admin_authenticated'):
         return "Unauthorized", 401
 
+    # 1. Fetch the roster and expire old data
+    db.session.expire_all()
     roster = db.session.get(Roster, roster_id)
     if not roster:
-        return "Roster not found", 404
+        return "Roster ID not found in database.", 404
 
-    current_ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
+    # 2. Handle the regular_ids string carefully
+    if not roster.regular_ids:
+        current_ids = []
+    else:
+        current_ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
+
+    # 3. Add the player if not there
     if str(player_id) not in current_ids:
         current_ids.append(str(player_id))
         roster.regular_ids = ",".join(current_ids)
-        db.session.commit()
-        return f"Success! Player {player_id} added. Total regulars: {len(current_ids)}"
-    return "Player already on roster."
 
+        # 4. Force save and refresh
+        db.session.add(roster)
+        db.session.commit()
+        db.session.refresh(roster)
+
+        return f"SUCCESS: Player {player_id} added to Roster {roster_id}. Total players now: {len(current_ids)}. <br><a href='/'>Go Home to Check</a>"
+
+    return f"Player {player_id} was ALREADY on Roster {roster_id}. If you don't see them, you might be looking at the wrong Roster ID (Global vs League)."
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
