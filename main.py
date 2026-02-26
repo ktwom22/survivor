@@ -722,28 +722,28 @@ def nuke_and_pave():
     return "Database reset! <a href='/'>Go Home</a>"
 
 
-@app.route('/admin/fix-tperrier')
-def fix_tperrier():
+@app.route('/admin/fix-walshymon')
+def fix_walshymon():
     if not session.get('admin_authenticated'):
         return "Unauthorized", 401
 
-    # Specifically target Roster 158
-    roster = db.session.get(Roster, 158)
+    # Specifically target Roster 156
+    roster = db.session.get(Roster, 156)
     if not roster:
-        return "Roster 158 not found.", 404
+        return "Roster 156 not found.", 404
 
     # Based on your input:
-    # Captain 1: (Not specified, setting to ID 23 to ensure it renders)
-    # Captain 2: 17
-    # Captain 3: 22
-    # Regulars: 23, 18, 15
+    # Captain 1: 4
+    # Captain 2: 2
+    # Captain 3: 11
+    # Regulars: 8, 13, 19
 
-    roster.cap1_id = 3  # Assuming 23 is the Gold Captain
-    roster.cap2_id = 17  # Silver
-    roster.cap3_id = 22  # Bronze
+    roster.cap1_id = 4  # Gold
+    roster.cap2_id = 2  # Silver
+    roster.cap3_id = 11  # Bronze
 
     # Store the regular IDs string
-    roster.regular_ids = "23,18,15"
+    roster.regular_ids = "8,13,19"
 
     # Ensure link to League 14
     roster.league_id = 14
@@ -752,11 +752,14 @@ def fix_tperrier():
     try:
         db.session.commit()
         return """
-            <h1>TPerrier9 Lineup Fixed!</h1>
-            <p><b>Roster ID:</b> 158</p>
-            <p><b>Captains:</b> 23, 17, 22</p>
-            <p><b>Regulars:</b> 23, 18, 15</p>
-            <a href='/league/COMEONIN'>Go to Dashboard</a>
+            <div style="font-family:sans-serif; padding:20px;">
+                <h1 style="color: #2ecc71;">Walshymon Lineup Fixed!</h1>
+                <p><b>Roster ID:</b> 156</p>
+                <p><b>Captains:</b> 4, 2, 11</p>
+                <p><b>Regulars:</b> 8, 13, 19</p>
+                <br>
+                <a href='/league/COMEONIN' style="padding:10px; background:#3498db; color:white; text-decoration:none; border-radius:5px;">Go to Dashboard</a>
+            </div>
         """
     except Exception as e:
         db.session.rollback()
