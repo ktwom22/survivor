@@ -545,34 +545,48 @@ def admin_scoring():
             session['admin_authenticated'] = True
             return redirect(url_for('admin_scoring'))
         return render_template('admin_login.html')
-    survivors = Survivor.query.all()
-    if request.method == 'POST':
-        if 'sync_all' in request.form:
-            sync_players()
-        else:
-            wn = int(request.form.get('week_num', 1))
-            for s in survivors:
-                if request.form.get(f'voted_out_{s.id}'): s.is_out = True
-                stat = WeeklyStat(
-                    player_id=s.id,
-                    week=wn,
-                    survived=request.form.get(f'surv_{s.id}') == 'on',
-                    immunity=request.form.get(f'imm_{s.id}') == 'on',
-                    reward=request.form.get(f'rew_{s.id}') == 'on',
-                    advantage=request.form.get(f'adv_{s.id}') == 'on',
-                    journey=request.form.get(f'jour_{s.id}') == 'on',
-                    in_pocket=request.form.get(f'pocket_{s.id}') == 'on',
-                    crying=request.form.get(f'cry_{s.id}') == 'on'
-                )
-                if s.points is None: s.points = 0.0
-                s.points += stat.calculate_for_league(POINTS_CONFIG)
-                db.session.add(stat)
-            db.session.commit()
-            flash(f"Week {wn} results published!")
-        return redirect(url_for('admin_scoring'))
-    return render_template('admin_login.html' if not session.get('admin_authenticated') else 'admin_scoring.html',
-                           survivors=survivors, config=POINTS_CONFIG)
 
+    # --- AJAX LIVE UPDATE LOGIC ---
+    if request.method == 'POST' and request.is_json:
+        data = request.json
+        p_id, week, category, state = data.get('p_id'), int(data.get('week')), data.get('cat'), data.get('state')
+
+        stat = WeeklyStat.query.filter_by(player_id=p_id, week=week).first() or WeeklyStat(player_id=p_id, week=week)
+        if not stat.id: db.session.add(stat)
+
+        if hasattr(stat, category) and not stat.is_locked:
+            setattr(stat, category, state)
+            db.session.commit()
+            # Recalculate cache for UI
+            p = db.session.get(Survivor, p_id)
+            p.points = sum(
+                s.calculate_for_league(POINTS_CONFIG) for s in WeeklyStat.query.filter_by(player_id=p_id).all())
+            db.session.commit()
+            return jsonify({"success": True, "new_total": round(p.points, 1)})
+        return jsonify({"success": False, "error": "Locked or Invalid"}), 400
+
+    # --- TRADITIONAL COMMIT SCORES (LOCKING) ---
+    if request.method == 'POST':
+        wn = int(request.form.get('week_num', 1))
+        survivors = Survivor.query.all()
+        for s in survivors:
+            stat = WeeklyStat.query.filter_by(player_id=s.id, week=wn).first()
+            if stat:
+                stat.is_locked = True  # This locks the checkboxes for this week
+            if request.form.get(f'voted_out_{s.id}'):
+                s.is_out = True
+        db.session.commit()
+        flash(f"Week {wn} Scores Committed and Locked!")
+        return redirect(url_for('admin_scoring', week=wn))
+
+    # GET Request
+    view_week = int(request.args.get('week', 1))
+    survivors = Survivor.query.all()
+    # Check if the week is locked by looking at any stat for that week
+    sample_stat = WeeklyStat.query.filter_by(week=view_week, is_locked=True).first()
+    is_locked = sample_stat is not None
+
+    return render_template('admin_scoring.html', survivors=survivors, week=view_week, is_locked=is_locked)
 
 @app.route('/robots.txt')
 def robots():
