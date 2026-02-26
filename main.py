@@ -637,37 +637,81 @@ def draft_trends():
     return render_template('trends.html', stats=stats_list, total_users=total_count)
 
 
-# --- SURGICAL ROSTER FIX ROUTE ---
+# --- NEW ADMIN LOOKUP TOOL ---
+@app.route('/admin/roster-lookup')
+def roster_lookup():
+    if not session.get('admin_authenticated'):
+        return "Unauthorized! Login at /admin/scoring", 401
+
+    all_rosters = Roster.query.all()
+    html = """
+    <h1>Private League Roster Lookup</h1>
+    <table border='1' style='border-collapse: collapse; width: 100%; text-align: left;'>
+        <tr style='background-color: #eee;'>
+            <th>Roster ID</th>
+            <th>Username</th>
+            <th>League Name (ID)</th>
+            <th>Type</th>
+            <th>Current Regulars</th>
+        </tr>
+    """
+    for r in all_rosters:
+        owner_name = r.owner.username if r.owner else "Unknown"
+        if r.is_global:
+            l_info = "GLOBAL CONTEST"
+            r_type = "Global"
+        else:
+            league = db.session.get(League, r.league_id)
+            l_info = f"{league.name} ({r.league_id})" if league else "Orphaned Roster"
+            r_type = "Private League"
+
+        html += f"<tr><td><b>{r.id}</b></td><td>{owner_name}</td><td>{l_info}</td><td>{r_type}</td><td>{r.regular_ids}</td></tr>"
+
+    html += "</table><br><h2>Player ID List</h2>"
+    players = Survivor.query.all()
+    for p in players:
+        html += f"{p.id}: {p.name} | "
+
+    return html
+
+
+# --- AGGRESSIVE ROSTER FIX ROUTE ---
 @app.route('/admin/force-add-player/<int:roster_id>/<int:player_id>')
 def force_add_player(roster_id, player_id):
     if not session.get('admin_authenticated'):
         return "Unauthorized", 401
 
-    # 1. Fetch the roster and expire old data
+    # 1. Force clear cache and fetch fresh
     db.session.expire_all()
     roster = db.session.get(Roster, roster_id)
     if not roster:
-        return "Roster ID not found in database.", 404
+        return f"Error: Roster ID {roster_id} not found.", 404
 
-    # 2. Handle the regular_ids string carefully
-    if not roster.regular_ids:
-        current_ids = []
-    else:
-        current_ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
+    # 2. Logic to update the string
+    old_ids = roster.regular_ids or "Empty"
+    current_list = [rid.strip() for rid in (roster.regular_ids or "").split(',') if rid.strip()]
 
-    # 3. Add the player if not there
-    if str(player_id) not in current_ids:
-        current_ids.append(str(player_id))
-        roster.regular_ids = ",".join(current_ids)
+    if str(player_id) not in current_list:
+        current_list.append(str(player_id))
+        roster.regular_ids = ",".join(current_list)
 
-        # 4. Force save and refresh
-        db.session.add(roster)
-        db.session.commit()
-        db.session.refresh(roster)
+        try:
+            db.session.add(roster)
+            db.session.commit()
+            db.session.refresh(roster)
+            return f"""
+                <h3>Success!</h3>
+                <p><b>Roster ID:</b> {roster_id}</p>
+                <p><b>Before:</b> {old_ids}</p>
+                <p><b>After:</b> {roster.regular_ids}</p>
+                <a href='/admin/roster-lookup'>Back to Lookup</a> | <a href='/'>Go Home</a>
+            """
+        except Exception as e:
+            db.session.rollback()
+            return f"Database Error: {str(e)}"
 
-        return f"SUCCESS: Player {player_id} added to Roster {roster_id}. Total players now: {len(current_ids)}. <br><a href='/'>Go Home to Check</a>"
+    return f"Player {player_id} is already in Roster {roster_id}."
 
-    return f"Player {player_id} was ALREADY on Roster {roster_id}. If you don't see them, you might be looking at the wrong Roster ID (Global vs League)."
 
 @app.route('/nuke_and_pave')
 def nuke_and_pave():
