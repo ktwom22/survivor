@@ -549,6 +549,7 @@ def admin_scoring():
         return render_template('admin_login.html')
 
     # --- 1. HANDLE AJAX LIVE UPDATES ---
+    # This fires every time you tap a checkbox in the browser
     if request.method == 'POST' and request.is_json:
         data = request.json
         p_id = data.get('player_id')
@@ -556,58 +557,70 @@ def admin_scoring():
         state = data.get('state')
         wn = int(data.get('week', 1))
 
-        # Check for existing stat for this week
+        # Fetch existing record for this player/week or create a new one
         stat = WeeklyStat.query.filter_by(player_id=p_id, week=wn).first() or WeeklyStat(player_id=p_id, week=wn)
+
         if not stat.id:
             db.session.add(stat)
 
-        # Safety check: Prevent updates if week is locked
+        # Prevent editing if the "Finalize" button was already clicked for this week
         if stat.is_locked:
-            return jsonify({"success": False, "error": "Week is locked"}), 403
+            return jsonify({"success": False, "error": "This week is locked and cannot be edited."}), 403
 
         if hasattr(stat, cat):
             setattr(stat, cat, state)
             db.session.commit()
 
-            # RE-CALCULATE POINTS IMMEDIATELY
+            # RE-CALCULATE TOTAL POINTS FOR THE PLAYER PROFILE
             p = db.session.get(Survivor, p_id)
             all_stats = WeeklyStat.query.filter_by(player_id=p_id).all()
+            # We recalculate everything to ensure the Profile and Global Leaderboard stay in sync
             p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in all_stats)
             db.session.commit()
 
             return jsonify({"success": True, "new_total": round(p.points, 1)})
         return jsonify({"success": False}), 400
 
-    # --- 2. HANDLE FULL PAGE SYNC OR WEEK LOCKING ---
+    # --- 2. HANDLE FULL PAGE ACTIONS (SYNC OR LOCK) ---
     survivors = Survivor.query.all()
+    # Determine which week we are viewing from the URL or the Form
+    view_week = int(request.form.get('week_num') or request.args.get('week', 1))
+
     if request.method == 'POST':
         if 'sync_all' in request.form:
             sync_players()
+            flash("Cast synced from Google Sheets.", "success")
         else:
-            wn = int(request.form.get('week_num', 1))
+            # This is the "Finalize & Lock" logic
             for s in survivors:
-                if request.form.get(f'voted_out_{s.id}'): s.is_out = True
-                # Finalize: Lock the week's stats
-                stat = WeeklyStat.query.filter_by(player_id=s.id, week=wn).first()
+                # Mark as out if the 'voted out' box was checked
+                if request.form.get(f'voted_out_{s.id}'):
+                    s.is_out = True
+
+                # Lock every stat record for this week so AJAX can't change them anymore
+                stat = WeeklyStat.query.filter_by(player_id=s.id, week=view_week).first()
                 if stat:
                     stat.is_locked = True
-            db.session.commit()
-            flash(f"Week {wn} results published and locked!")
-        return redirect(url_for('admin_scoring', week=request.form.get('week_num', 1)))
 
-    # --- 3. PAGE DISPLAY LOGIC ---
-    view_week = int(request.args.get('week', 1))
-    is_locked_week = False
-    try:
-        locked_check = WeeklyStat.query.filter_by(week=view_week, is_locked=True).first()
-        is_locked_week = locked_check is not None
-    except:
-        db.session.rollback()
+            db.session.commit()
+            flash(f"Week {view_week} has been finalized and locked!", "danger")
+
+        return redirect(url_for('admin_scoring', week=view_week))
+
+    # --- 3. PAGE DISPLAY LOGIC (GET REQUEST) ---
+    # We need to send the CURRENT state of checkboxes to the HTML
+    # We create a dictionary: { player_id: WeeklyStat_Object } for easy lookup in Jinja
+    stats_list = WeeklyStat.query.filter_by(week=view_week).all()
+    current_stats = {s.player_id: s for s in stats_list}
+
+    # Check if the week itself is locked to disable the UI in HTML
+    is_locked_week = any(s.is_locked for s in stats_list) if stats_list else False
 
     return render_template('admin_scoring.html',
                            survivors=survivors,
                            config=POINTS_CONFIG,
                            week=view_week,
+                           current_stats=current_stats,
                            is_locked=is_locked_week)
 
 
