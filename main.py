@@ -722,6 +722,42 @@ def nuke_and_pave():
     return "Database reset! <a href='/'>Go Home</a>"
 
 
+@app.route('/admin/fix-cassidy')
+def fix_cassidy():
+    if not session.get('admin_authenticated'):
+        return "Unauthorized", 401
+
+    # Specifically target Roster 98
+    roster = db.session.get(Roster, 98)
+    if not roster:
+        return "Roster 98 not found in database.", 404
+
+    # The IDs you provided: 2, 18, 17, 23, 13, 6
+    # Let's set the first three as the Captains (Gold, Silver, Bronze)
+    roster.cap1_id = 2
+    roster.cap2_id = 18
+    roster.cap3_id = 17
+
+    # We keep the full list in regular_ids just to be safe
+    roster.regular_ids = "2,18,17,23,13,6"
+
+    # Ensure it is properly linked to the league and marked as private
+    roster.league_id = 14
+    roster.is_global = False
+
+    try:
+        db.session.commit()
+        return """
+            <h1>Cassidy's Lineup Fixed!</h1>
+            <p><b>Captains:</b> 2, 18, 17</p>
+            <p><b>Regulars:</b> 2, 18, 17, 23, 13, 6</p>
+            <p><b>League:</b> 14</p>
+            <a href='/league/COMEONIN'>View League Dashboard</a>
+        """
+    except Exception as e:
+        db.session.rollback()
+        return f"Database Error: {str(e)}"
+
 # --- MIGRATION & STARTUP BLOCK ---
 with app.app_context():
     db.create_all()
