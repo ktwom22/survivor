@@ -5,7 +5,7 @@
     <div class="col-md-3 order-2 order-md-1">
         <div class="pro-card border-secondary shadow-sm mb-4">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">League Standings</h6>
-            <div class="list-group list-group-flush bg-black">
+            <div class="list-group list-group-flush bg-black mb-3">
                 {% for e in leaderboard %}
                 <a href="{{ url_for('league_dashboard', code=league.invite_code, view_user=e.user) }}"
                    class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2 text-decoration-none transition">
@@ -19,6 +19,11 @@
                 </a>
                 {% endfor %}
             </div>
+
+            <a href="{{ url_for('download_rosters', code_or_id=league.invite_code) }}"
+               class="btn btn-ocean w-100 fw-900 uppercase ls-1 btn-sm py-2 shadow-sm">
+                <i class="fas fa-file-csv me-2"></i>Download Rosters
+            </a>
         </div>
 
         <div class="pro-card border-accent bg-black shadow-sm">
@@ -62,7 +67,6 @@
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (my_tribe.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
-                    {# FIXED: Changed player_id to slug #}
                     <a href="{{ url_for('player_profile', slug=cap.slug or cap.id|string) }}" class="text-decoration-none mb-3 d-block">
                         <div class="pro-card p-2 border-start tribe-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
                             <div class="d-flex align-items-center">
@@ -86,7 +90,6 @@
             <div class="row g-2">
                 {% for p in my_tribe.regs %}
                 <div class="col-6 col-md-4">
-                    {# FIXED: Changed player_id to slug #}
                     <a href="{{ url_for('player_profile', slug=p.slug or p.id|string) }}" class="text-decoration-none h-100 d-block">
                         <div class="pro-card border-secondary p-0 overflow-hidden h-100 tribe-member-card">
                             <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
@@ -202,10 +205,7 @@
         document.getElementById('modalImg').src = img;
         document.getElementById('modalSeason').innerText = "Season: " + season;
         document.getElementById('modalDetails').innerText = details;
-
-        // FIXED: Updated to use slug for the season stats link
         document.getElementById('modalProfileLink').href = "/player/" + slug;
-
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
