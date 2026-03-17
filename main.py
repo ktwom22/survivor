@@ -177,7 +177,6 @@ def get_roster_data(roster):
     c3 = db.session.get(Survivor, roster.cap3_id) if roster.cap3_id else None
     reg_list = []
     if roster.regular_ids:
-        # Split and filter out empty strings to prevent errors from trailing commas
         ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
         for rid in ids:
             try:
@@ -255,11 +254,8 @@ def signup():
             db.session.add(new_u)
             db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
-
-            # Check for guest draft
             if process_pending_tribe(new_u.id):
                 flash("Welcome! Your tribe has been locked in.", "success")
-
             return redirect(url_for('index'))
         except:
             db.session.rollback()
@@ -274,10 +270,7 @@ def login():
             (User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
-
-            # Check for guest draft
             process_pending_tribe(u.id)
-
             return redirect(url_for('index'))
         flash("Invalid credentials.", "danger")
     return render_template('login.html')
@@ -424,7 +417,6 @@ def draft(code):
 
 @app.route('/join-global', methods=['POST'])
 def join_global():
-    # If not logged in, just send to draft as a guest
     if 'user_id' not in session:
         return redirect(url_for('global_draft_page'))
 
@@ -470,7 +462,6 @@ def global_leaderboard():
 
 @app.route('/global/draft')
 def global_draft_page():
-    # Guests can see the page
     roster = None
     if 'user_id' in session:
         roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
@@ -493,13 +484,11 @@ def save_global_draft():
         'regs': request.form.getlist('regs')
     }
 
-    # IF NOT LOGGED IN: Save to session and redirect
     if 'user_id' not in session:
         session['pending_tribe'] = picks
-        flash("Tribe captured! Now create an account to secure your spot on the leaderboard.", "info")
+        flash("Tribe captured! Now create an account to secure your spot.", "info")
         return redirect(url_for('signup'))
 
-    # IF LOGGED IN: Normal Save
     user_exists = db.session.get(User, session['user_id'])
     if not user_exists:
         session.clear()
@@ -524,7 +513,6 @@ def save_global_draft():
     return redirect(url_for('index'))
 
 
-# --- PLAYER PROFILES ---
 @app.route('/player/<string:slug>')
 def player_profile(slug):
     if slug.isdigit():
@@ -548,8 +536,6 @@ def admin_scoring():
             return redirect(url_for('admin_scoring'))
         return render_template('admin_login.html')
 
-    # --- 1. HANDLE AJAX LIVE UPDATES ---
-    # This fires every time you tap a checkbox in the browser
     if request.method == 'POST' and request.is_json:
         data = request.json
         p_id = data.get('player_id')
@@ -557,71 +543,47 @@ def admin_scoring():
         state = data.get('state')
         wn = int(data.get('week', 1))
 
-        # Fetch existing record for this player/week or create a new one
         stat = WeeklyStat.query.filter_by(player_id=p_id, week=wn).first() or WeeklyStat(player_id=p_id, week=wn)
-
         if not stat.id:
             db.session.add(stat)
 
-        # Prevent editing if the "Finalize" button was already clicked for this week
         if stat.is_locked:
-            return jsonify({"success": False, "error": "This week is locked and cannot be edited."}), 403
+            return jsonify({"success": False, "error": "This week is locked."}), 403
 
         if hasattr(stat, cat):
             setattr(stat, cat, state)
             db.session.commit()
-
-            # RE-CALCULATE TOTAL POINTS FOR THE PLAYER PROFILE
             p = db.session.get(Survivor, p_id)
             all_stats = WeeklyStat.query.filter_by(player_id=p_id).all()
-            # We recalculate everything to ensure the Profile and Global Leaderboard stay in sync
             p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in all_stats)
             db.session.commit()
-
             return jsonify({"success": True, "new_total": round(p.points, 1)})
         return jsonify({"success": False}), 400
 
-    # --- 2. HANDLE FULL PAGE ACTIONS (SYNC OR LOCK) ---
     survivors = Survivor.query.all()
-    # Determine which week we are viewing from the URL or the Form
     view_week = int(request.form.get('week_num') or request.args.get('week', 1))
 
     if request.method == 'POST':
         if 'sync_all' in request.form:
             sync_players()
-            flash("Cast synced from Google Sheets.", "success")
+            flash("Cast synced.", "success")
         else:
-            # This is the "Finalize & Lock" logic
             for s in survivors:
-                # Mark as out if the 'voted out' box was checked
                 if request.form.get(f'voted_out_{s.id}'):
                     s.is_out = True
-
-                # Lock every stat record for this week so AJAX can't change them anymore
                 stat = WeeklyStat.query.filter_by(player_id=s.id, week=view_week).first()
                 if stat:
                     stat.is_locked = True
-
             db.session.commit()
-            flash(f"Week {view_week} has been finalized and locked!", "danger")
-
+            flash(f"Week {view_week} locked!", "danger")
         return redirect(url_for('admin_scoring', week=view_week))
 
-    # --- 3. PAGE DISPLAY LOGIC (GET REQUEST) ---
-    # We need to send the CURRENT state of checkboxes to the HTML
-    # We create a dictionary: { player_id: WeeklyStat_Object } for easy lookup in Jinja
     stats_list = WeeklyStat.query.filter_by(week=view_week).all()
     current_stats = {s.player_id: s for s in stats_list}
-
-    # Check if the week itself is locked to disable the UI in HTML
     is_locked_week = any(s.is_locked for s in stats_list) if stats_list else False
 
-    return render_template('admin_scoring.html',
-                           survivors=survivors,
-                           config=POINTS_CONFIG,
-                           week=view_week,
-                           current_stats=current_stats,
-                           is_locked=is_locked_week)
+    return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG,
+                           week=view_week, current_stats=current_stats, is_locked=is_locked_week)
 
 
 @app.route('/robots.txt')
@@ -634,134 +596,68 @@ def sitemap():
     pages = []
     now = datetime.now().strftime('%Y-%m-%d')
     main_functions = ['index', 'global_leaderboard', 'login']
-
     for func in main_functions:
         try:
-            pages.append({
-                "loc": url_for(func, _external=True),
-                "lastmod": now,
-                "priority": "1.0" if func == 'index' else "0.8"
-            })
+            pages.append({"loc": url_for(func, _external=True), "lastmod": now, "priority": "0.8"})
         except:
             continue
-
     try:
         players = Survivor.query.all()
         for p in players:
-            loc_val = url_for('player_profile', slug=(p.slug or str(p.id)), _external=True)
-            pages.append({
-                "loc": loc_val,
-                "lastmod": now,
-                "priority": "0.7"
-            })
-    except Exception as e:
-        print(f"Sitemap Error: {e}")
-
-    sitemap_xml = render_template('sitemap_template.xml', pages=pages)
-    return Response(sitemap_xml, mimetype='application/xml')
+            pages.append({"loc": url_for('player_profile', slug=(p.slug or str(p.id)), _external=True),
+                          "lastmod": now, "priority": "0.7"})
+    except:
+        pass
+    return Response(render_template('sitemap_template.xml', pages=pages), mimetype='application/xml')
 
 
 @app.route('/trends')
 def draft_trends():
     submitted_rosters = Roster.query.filter(Roster.cap1_id.isnot(None)).all()
     total_count = len(submitted_rosters)
-    if total_count == 0:
-        return render_template('trends.html', stats=[], total_users=0,
-                               error="No completed drafts found yet.")
+    if total_count == 0: return render_template('trends.html', stats=[], total_users=0)
+
     all_survivors = Survivor.query.all()
     stats_list = []
     for s in all_survivors:
-        gold_picks = sum(1 for r in submitted_rosters if r.cap1_id == s.id)
-        silver_picks = sum(1 for r in submitted_rosters if r.cap2_id == s.id)
-        bronze_picks = sum(1 for r in submitted_rosters if r.cap3_id == s.id)
-        reg_picks = sum(1 for r in submitted_rosters if r.regular_ids and str(s.id) in r.regular_ids.split(','))
-        total_picks = gold_picks + silver_picks + bronze_picks + reg_picks
-        if total_picks > 0:
-            stats_list.append({
-                'name': s.name, 'slug': s.slug,
-                'image': s.image_url,
-                'total_pct': round((total_picks / total_count) * 100, 1),
-                'gold_pct': round((gold_picks / total_count) * 100, 1),
-                'count': total_picks
-            })
-    stats_list = sorted(stats_list, key=lambda x: x['total_pct'], reverse=True)
-    return render_template('trends.html', stats=stats_list, total_users=total_count)
+        gold = sum(1 for r in submitted_rosters if r.cap1_id == s.id)
+        silver = sum(1 for r in submitted_rosters if r.cap2_id == s.id)
+        bronze = sum(1 for r in submitted_rosters if r.cap3_id == s.id)
+        regs = sum(1 for r in submitted_rosters if r.regular_ids and str(s.id) in r.regular_ids.split(','))
+        total = gold + silver + bronze + regs
+        if total > 0:
+            stats_list.append({'name': s.name, 'slug': s.slug, 'image': s.image_url,
+                               'total_pct': round((total / total_count) * 100, 1),
+                               'gold_pct': round((gold / total_count) * 100, 1), 'count': total})
+    return render_template('trends.html', stats=sorted(stats_list, key=lambda x: x['total_pct'], reverse=True),
+                           total_users=total_count)
 
 
-# --- NEW ADMIN LOOKUP TOOL ---
 @app.route('/admin/roster-lookup')
 def roster_lookup():
-    if not session.get('admin_authenticated'):
-        return "Unauthorized! Login at /admin/scoring", 401
-
+    if not session.get('admin_authenticated'): return "Unauthorized", 401
     all_rosters = Roster.query.all()
-    html = """
-    <h1>Private League Roster Lookup</h1>
-    <table border='1' style='border-collapse: collapse; width: 100%; text-align: left;'>
-        <tr style='background-color: #eee;'>
-            <th>Roster ID</th>
-            <th>Username</th>
-            <th>League Name (ID)</th>
-            <th>Type</th>
-            <th>Current Regulars</th>
-        </tr>
-    """
+    html = "<h1>Roster Lookup</h1><table border='1'><tr><th>ID</th><th>User</th><th>League</th><th>Regulars</th></tr>"
     for r in all_rosters:
-        owner_name = r.owner.username if r.owner else "Unknown"
-        if r.is_global:
-            l_info = "GLOBAL CONTEST"
-            r_type = "Global"
-        else:
-            league = db.session.get(League, r.league_id)
-            l_info = f"{league.name} ({r.league_id})" if league else "Orphaned Roster"
-            r_type = "Private League"
-
-        html += f"<tr><td><b>{r.id}</b></td><td>{owner_name}</td><td>{l_info}</td><td>{r_type}</td><td>{r.regular_ids}</td></tr>"
-
-    html += "</table><br><h2>Player ID List</h2>"
-    players = Survivor.query.all()
-    for p in players:
-        html += f"{p.id}: {p.name} | "
-
-    return html
+        owner = r.owner.username if r.owner else "Unknown"
+        l_info = "GLOBAL" if r.is_global else f"ID: {r.league_id}"
+        html += f"<tr><td>{r.id}</td><td>{owner}</td><td>{l_info}</td><td>{r.regular_ids}</td></tr>"
+    return html + "</table>"
 
 
-# --- AGGRESSIVE ROSTER FIX ROUTE ---
 @app.route('/admin/force-add-player/<int:roster_id>/<int:player_id>')
 def force_add_player(roster_id, player_id):
-    if not session.get('admin_authenticated'):
-        return "Unauthorized", 401
-
-    # 1. Force clear cache and fetch fresh
+    if not session.get('admin_authenticated'): return "Unauthorized", 401
     db.session.expire_all()
     roster = db.session.get(Roster, roster_id)
-    if not roster:
-        return f"Error: Roster ID {roster_id} not found.", 404
-
-    # 2. Logic to update the string
-    old_ids = roster.regular_ids or "Empty"
+    if not roster: return "Roster not found", 404
     current_list = [rid.strip() for rid in (roster.regular_ids or "").split(',') if rid.strip()]
-
     if str(player_id) not in current_list:
         current_list.append(str(player_id))
         roster.regular_ids = ",".join(current_list)
-
-        try:
-            db.session.add(roster)
-            db.session.commit()
-            db.session.refresh(roster)
-            return f"""
-                <h3>Success!</h3>
-                <p><b>Roster ID:</b> {roster_id}</p>
-                <p><b>Before:</b> {old_ids}</p>
-                <p><b>After:</b> {roster.regular_ids}</p>
-                <a href='/admin/roster-lookup'>Back to Lookup</a> | <a href='/'>Go Home</a>
-            """
-        except Exception as e:
-            db.session.rollback()
-            return f"Database Error: {str(e)}"
-
-    return f"Player {player_id} is already in Roster {roster_id}."
+        db.session.commit()
+        return "Success!"
+    return "Already exists."
 
 
 @app.route('/nuke_and_pave')
@@ -769,68 +665,26 @@ def nuke_and_pave():
     db.drop_all()
     db.create_all()
     sync_players()
-    return "Database reset! <a href='/'>Go Home</a>"
+    return "Reset complete! <a href='/'>Home</a>"
 
 
-@app.route('/admin/fix-walshymon')
-def fix_walshymon():
-    if not session.get('admin_authenticated'):
-        return "Unauthorized", 401
-
-    # Specifically target Roster 156
-    roster = db.session.get(Roster, 156)
-    if not roster:
-        return "Roster 156 not found.", 404
-
-    roster.cap1_id = 4  # Gold
-    roster.cap2_id = 2  # Silver
-    roster.cap3_id = 11  # Bronze
-    roster.regular_ids = "8,13,19"
-    roster.league_id = 14
-    roster.is_global = False
-
-    try:
-        db.session.commit()
-        return """
-            <div style="font-family:sans-serif; padding:20px;">
-                <h1 style="color: #2ecc71;">Walshymon Lineup Fixed!</h1>
-                <p><b>Roster ID:</b> 156</p>
-                <p><b>Captains:</b> 4, 2, 11</p>
-                <p><b>Regulars:</b> 8, 13, 19</p>
-                <br>
-                <a href='/league/COMEONIN' style="padding:10px; background:#3498db; color:white; text-decoration:none; border-radius:5px;">Go to Dashboard</a>
-            </div>
-        """
-    except Exception as e:
-        db.session.rollback()
-        return f"Database Error: {str(e)}"
-
-
-# --- MIGRATION & STARTUP BLOCK ---
+# --- MIGRATION & STARTUP ---
 with app.app_context():
     db.create_all()
-    # Migration: Add slug if missing
+    # Migration handling for existing DBs
     try:
         db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
-    except Exception:
+    except:
         db.session.rollback()
-        try:
-            db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
-            db.session.commit()
-            sync_players()
-        except Exception as e:
-            print(f"Slug Migration Error: {e}")
-
-    # Migration: Add is_locked to WeeklyStat if missing
+        db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
+        db.session.commit()
+        sync_players()
     try:
         db.session.execute(text("SELECT is_locked FROM weekly_stat LIMIT 1"))
-    except Exception:
+    except:
         db.session.rollback()
-        try:
-            db.session.execute(text("ALTER TABLE weekly_stat ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
-            db.session.commit()
-        except Exception as e:
-            print(f"Is_Locked Migration Error: {e}")
+        db.session.execute(text("ALTER TABLE weekly_stat ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
+        db.session.commit()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
