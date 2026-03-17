@@ -33,9 +33,9 @@ POINTS_CONFIG = {
     "in_pocket": -5.0, "journey": 3.0, "quit_game": -25.0
 }
 
-# STATUS: UPDATED GRACE PERIOD
-# Set to 5AM UTC (Midnight EST) to allow for premiere-night roster corrections.
-LOCK_DATETIME = datetime(2026, 2, 26, 5, 0, tzinfo=timezone.utc)
+# STATUS: UPDATED TO MARCH 18, 2026 @ 8PM EST
+# 8PM EST is 00:00 UTC the following day.
+LOCK_DATETIME = datetime(2026, 3, 19, 0, 0, tzinfo=timezone.utc)
 
 
 # --- MODELS ---
@@ -116,7 +116,7 @@ class Roster(db.Model):
 # --- HELPERS ---
 
 def is_locked():
-    """Checks if the current time is past the Survivor 50 premiere lock."""
+    """Checks if the current time is past the lock date."""
     return datetime.now(timezone.utc) > LOCK_DATETIME
 
 
@@ -400,7 +400,7 @@ def draft(code):
     if 'user_id' not in session: return redirect(url_for('login'))
 
     if is_locked():
-        flash("The tribe has spoken! Rosters are locked for the premiere.", "danger")
+        flash("The tribe has spoken! Rosters are locked.", "danger")
         return redirect(url_for('league_dashboard', code=code))
 
     l = League.query.filter_by(invite_code=code).first_or_404()
@@ -474,7 +474,7 @@ def global_draft_page():
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
     if is_locked():
-        flash("Drafting is closed! The Survivor 50 premiere has started.", "danger")
+        flash("Drafting is closed!", "danger")
         return redirect(url_for('index'))
 
     picks = {
