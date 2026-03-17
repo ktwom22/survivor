@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import text
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "survivor_2026_pro_key")
@@ -34,9 +35,17 @@ POINTS_CONFIG = {
 }
 
 # STATUS: UPDATED TO MARCH 18, 2026 @ 8PM EST
-# 8PM EST is 00:00 UTC the following day.
 LOCK_DATETIME = datetime(2026, 3, 19, 0, 0, tzinfo=timezone.utc)
 
+# --- LOGIN REQUIRED DECORATOR ---
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash("Please log in to access this page.", "warning")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # --- MODELS ---
 class User(db.Model):
@@ -116,31 +125,14 @@ class Roster(db.Model):
 # --- HELPERS ---
 
 def is_locked():
-    """Checks if the current time is past the lock date."""
     return datetime.now(timezone.utc) > LOCK_DATETIME
 
 
 def get_latest_media():
-    """Returns a list of recent Survivor YouTube videos for the homepage."""
     return [
-        {
-            "title": "Survivor 50 Pre-Season Cast Analysis",
-            "channel": "Idoled Out",
-            "id": "GeFrVmNvu64",
-            "date": "Feb 15, 2026"
-        },
-        {
-            "title": "Reacting to the Survivor 50 Tribes",
-            "channel": "RHAP",
-            "id": "F5H6hyR7oWg",
-            "date": "Jan 28, 2026"
-        },
-        {
-            "title": "The Story of Every Survivor 50 Player",
-            "channel": "Idoled Out",
-            "id": "iyKkNmo6-6c",
-            "date": "Jan 11, 2026"
-        }
+        {"title": "Survivor 50 Pre-Season Cast Analysis", "channel": "Idoled Out", "id": "GeFrVmNvu64", "date": "Feb 15, 2026"},
+        {"title": "Reacting to the Survivor 50 Tribes", "channel": "RHAP", "id": "F5H6hyR7oWg", "date": "Jan 28, 2026"},
+        {"title": "The Story of Every Survivor 50 Player", "channel": "Idoled Out", "id": "iyKkNmo6-6c", "date": "Jan 11, 2026"}
     ]
 
 
@@ -159,8 +151,7 @@ def sync_players():
                 p = Survivor(name=name, points=0.0, slug=slug_name)
                 db.session.add(p)
             else:
-                if not p.slug:
-                    p.slug = slug_name
+                if not p.slug: p.slug = slug_name
             p.image_url = row.get('Image Link', '').strip()
             p.season = row.get('What Season?', '').strip()
             p.details = row.get('Details', '').strip()
@@ -182,8 +173,7 @@ def get_roster_data(roster):
             try:
                 player = db.session.get(Survivor, int(rid))
                 if player: reg_list.append(player)
-            except ValueError:
-                continue
+            except ValueError: continue
     return {"cap1": c1, "cap2": c2, "cap3": c3, "regs": reg_list}
 
 
@@ -200,16 +190,13 @@ def calculate_roster_score(roster, pts_config):
 
 
 def process_pending_tribe(user_id):
-    """Helper to save a draft after registration/login"""
     if is_locked():
         session.pop('pending_tribe', None)
         return False
-
     if 'pending_tribe' in session:
         picks = session.pop('pending_tribe')
         r = Roster.query.filter_by(user_id=user_id, is_global=True).first() or Roster(user_id=user_id, is_global=True)
-        if not r.id:
-            db.session.add(r)
+        if not r.id: db.session.add(r)
         r.cap1_id = int(picks['cap1'])
         r.cap2_id = int(picks['cap2'])
         r.cap3_id = int(picks['cap3'])
@@ -230,19 +217,12 @@ def index():
         my_rosters = Roster.query.filter_by(user_id=session['user_id']).all()
         leagues = League.query.filter(League.id.in_([r.league_id for r in my_rosters if r.league_id])).all()
         user_in_global = any(r.is_global for r in my_rosters)
-
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    global_lb = []
-    for r in global_rosters:
-        if r.owner:
-            global_lb.append({'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)})
-
+    global_lb = [{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner]
     global_top_5 = sorted(global_lb, key=lambda x: x['score'], reverse=True)[:5]
-    media_items = get_latest_media()
-
     return render_template('home.html', user_leagues=leagues, cast=all_cast, global_top_5=global_top_5,
                            total_global_entrants=len(global_rosters), user_in_global=user_in_global,
-                           media=media_items, is_locked=is_locked())
+                           media=get_latest_media(), is_locked=is_locked())
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -254,8 +234,7 @@ def signup():
             db.session.add(new_u)
             db.session.commit()
             session['user_id'], session['username'] = new_u.id, new_u.username
-            if process_pending_tribe(new_u.id):
-                flash("Welcome! Your tribe has been locked in.", "success")
+            process_pending_tribe(new_u.id)
             return redirect(url_for('index'))
         except:
             db.session.rollback()
@@ -266,8 +245,7 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u = User.query.filter(
-            (User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
+        u = User.query.filter((User.email == request.form.get('email')) | (User.username == request.form.get('email'))).first()
         if u and check_password_hash(u.password, request.form.get('password')):
             session['user_id'], session['username'] = u.id, u.username
             process_pending_tribe(u.id)
@@ -295,69 +273,42 @@ def forgot_password():
                     "from": f"Survivor Pool <{SENDER_EMAIL}>",
                     "to": [user.email],
                     "subject": "Reset Your Password",
-                    "html": f"""
-                        <div style="background:#000; color:#fff; padding:20px; border:4px solid #FFD700; font-family:sans-serif;">
-                            <h2 style="color:#FFD700;">PASSWORD RESET REQUEST</h2>
-                            <p>Click the button below to secure your tribe's access:</p>
-                            <a href="{reset_url}" style="background:#FFD700; color:#000; padding:12px 25px; text-decoration:none; font-weight:bold; display:inline-block; margin:20px 0;">RESET PASSWORD</a>
-                        </div>
-                    """
+                    "html": f"<a href='{reset_url}'>Reset Password</a>"
                 })
-                flash("Reset link sent! Check your inbox.", "success")
-            except Exception:
-                flash("Email failed to send.", "danger")
-        else:
-            flash("If registered, a link has been sent.", "info")
+                flash("Reset link sent!", "success")
+            except: flash("Email failed.", "danger")
     return render_template('forgot_password.html')
 
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_with_token(token):
-    try:
-        email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
-    except:
-        flash("Invalid or expired link.", "danger")
-        return redirect(url_for('login'))
+    try: email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
+    except: return redirect(url_for('login'))
     if request.method == 'POST':
         user = User.query.filter_by(email=email).first_or_404()
         user.password = generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         db.session.commit()
-        flash("Password updated!", "success")
         return redirect(url_for('login'))
     return render_template('reset_password.html')
 
 
 @app.route('/create_league', methods=['POST'])
+@login_required
 def create_league():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    return render_template('create_league_config.html', league_name=request.form.get('league_name', 'New League'),
-                           default_points=POINTS_CONFIG)
+    return render_template('create_league_config.html', league_name=request.form.get('league_name', 'New League'), default_points=POINTS_CONFIG)
 
 
 @app.route('/finalize_league', methods=['POST'])
+@login_required
 def finalize_league():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    current_user = db.session.get(User, session['user_id'])
-    if not current_user:
-        session.clear()
-        flash("User not found. Please register again.", "danger")
-        return redirect(url_for('signup'))
-
-    custom_pts = {key: float(request.form.get(f'val_{key}', 0)) if request.form.get(f'active_{key}') == 'on' else 0 for
-                  key in POINTS_CONFIG.keys()}
+    custom_pts = {k: float(request.form.get(f'val_{k}', 0)) if request.form.get(f'active_{k}') == 'on' else 0 for k in POINTS_CONFIG.keys()}
     code = str(uuid.uuid4())[:6].upper()
     new_l = League(name=request.form.get('league_name'), invite_code=code, settings_json=json.dumps(custom_pts))
     db.session.add(new_l)
     db.session.flush()
-    db.session.add(Roster(league_id=new_l.id, user_id=current_user.id))
-    try:
-        db.session.commit()
-        return redirect(url_for('league_success', code=code))
-    except Exception as e:
-        db.session.rollback()
-        flash("Database error. Try again.", "danger")
-        return redirect(url_for('index'))
+    db.session.add(Roster(league_id=new_l.id, user_id=session['user_id']))
+    db.session.commit()
+    return redirect(url_for('league_success', code=code))
 
 
 @app.route('/league-created/<code>')
@@ -366,8 +317,8 @@ def league_success(code):
 
 
 @app.route('/join_league', methods=['POST'])
+@login_required
 def join_league():
-    if 'user_id' not in session: return redirect(url_for('login'))
     l = League.query.filter_by(invite_code=request.form.get('invite_code', '').upper().strip()).first()
     if l:
         if not Roster.query.filter_by(league_id=l.id, user_id=session['user_id']).first():
@@ -379,15 +330,13 @@ def join_league():
 
 
 @app.route('/league/<code>')
+@login_required
 def league_dashboard(code):
-    if 'user_id' not in session: return redirect(url_for('login'))
     league = League.query.filter_by(invite_code=code).first_or_404()
     l_pts = league.get_points()
     target_username = request.args.get('view_user', session.get('username'))
     all_rosters = Roster.query.filter_by(league_id=league.id).all()
-    leaderboard = sorted(
-        [{'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)} for r in all_rosters if r.owner],
-        key=lambda x: x['score'], reverse=True)
+    leaderboard = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, l_pts)} for r in all_rosters if r.owner], key=lambda x: x['score'], reverse=True)
     target_user = User.query.filter_by(username=target_username).first()
     disp_r = Roster.query.filter_by(league_id=league.id, user_id=target_user.id).first() if target_user else None
     return render_template('dashboard.html', league=league, leaderboard=leaderboard, my_tribe=get_roster_data(disp_r),
@@ -396,145 +345,54 @@ def league_dashboard(code):
 
 
 @app.route('/draft/<code>', methods=['POST'])
+@login_required
 def draft(code):
-    if 'user_id' not in session: return redirect(url_for('login'))
-
-    if is_locked():
-        flash("The tribe has spoken! Rosters are locked.", "danger")
-        return redirect(url_for('league_dashboard', code=code))
-
+    if is_locked(): return redirect(url_for('league_dashboard', code=code))
     l = League.query.filter_by(invite_code=code).first_or_404()
     r = Roster.query.filter_by(league_id=l.id, user_id=session['user_id']).first()
     if r:
-        c1, c2, c3 = request.form.get('cap1'), request.form.get('cap2'), request.form.get('cap3')
-        regs = request.form.getlist('regs')
-        r.cap1_id, r.cap2_id, r.cap3_id = int(c1), int(c2), int(c3)
-        r.regular_ids = ",".join(regs)
+        r.cap1_id, r.cap2_id, r.cap3_id = int(request.form.get('cap1')), int(request.form.get('cap2')), int(request.form.get('cap3'))
+        r.regular_ids = ",".join(request.form.getlist('regs'))
         db.session.commit()
-        flash("Draft saved!", "success")
     return redirect(url_for('league_dashboard', code=code))
 
 
-@app.route('/join-global', methods=['POST'])
-def join_global():
-    if 'user_id' not in session:
-        return redirect(url_for('global_draft_page'))
-
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
-    if not r:
-        r = Roster(user_id=session['user_id'], is_global=True)
-        db.session.add(r)
-        db.session.commit()
-        flash("Welcome to the Global Season! Time to draft your tribe.", "success")
-    return redirect(url_for('global_draft_page'))
-
-
 @app.route('/global')
-@app.route('/global-leaderboard')
 def global_leaderboard():
     global_rosters = Roster.query.filter_by(is_global=True).all()
-    lb = []
-    for r in global_rosters:
-        if r.owner:
-            lb.append({
-                'user': r.owner.username,
-                'score': calculate_roster_score(r, POINTS_CONFIG)
-            })
-
-    lb = sorted(lb, key=lambda x: x['score'], reverse=True)
+    lb = sorted([{'user': r.owner.username, 'score': calculate_roster_score(r, POINTS_CONFIG)} for r in global_rosters if r.owner], key=lambda x: x['score'], reverse=True)
     view_username = request.args.get('view_user', session.get('username') or "Guest")
     target_user = User.query.filter_by(username=view_username).first()
-
-    my_tribe_data = None
-    display_name = "Global Contest"
-
-    if target_user:
-        target_roster = Roster.query.filter_by(user_id=target_user.id, is_global=True).first()
-        if target_roster:
-            my_tribe_data = get_roster_data(target_roster)
-            display_name = f"{target_user.username}'s Tribe"
-
-    return render_template('global_standings.html',
-                           full_global_leaderboard=lb,
-                           my_tribe=my_tribe_data,
-                           display_name=display_name)
+    my_tribe_data = get_roster_data(Roster.query.filter_by(user_id=target_user.id, is_global=True).first()) if target_user else None
+    return render_template('global_standings.html', full_global_leaderboard=lb, my_tribe=my_tribe_data, display_name="Global Contest")
 
 
 @app.route('/global/draft')
 def global_draft_page():
-    roster = None
-    if 'user_id' in session:
-        roster = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first()
-
-    available = Survivor.query.filter_by(is_out=False).all()
-    return render_template('global_draft.html', roster=roster, available=available, config=POINTS_CONFIG,
-                           get_roster_data=get_roster_data, is_locked=is_locked())
+    roster = Roster.query.filter_by(user_id=session.get('user_id'), is_global=True).first() if 'user_id' in session else None
+    return render_template('global_draft.html', roster=roster, available=Survivor.query.filter_by(is_out=False).all(), config=POINTS_CONFIG, get_roster_data=get_roster_data, is_locked=is_locked())
 
 
 @app.route('/save_global_draft', methods=['POST'])
 def save_global_draft():
-    if is_locked():
-        flash("Drafting is closed!", "danger")
-        return redirect(url_for('index'))
-
-    picks = {
-        'cap1': request.form.get('cap1'),
-        'cap2': request.form.get('cap2'),
-        'cap3': request.form.get('cap3'),
-        'regs': request.form.getlist('regs')
-    }
-
+    if is_locked(): return redirect(url_for('index'))
+    picks = {'cap1': request.form.get('cap1'), 'cap2': request.form.get('cap2'), 'cap3': request.form.get('cap3'), 'regs': request.form.getlist('regs')}
     if 'user_id' not in session:
         session['pending_tribe'] = picks
-        flash("Tribe captured! Now create an account to secure your spot.", "info")
         return redirect(url_for('signup'))
-
-    user_exists = db.session.get(User, session['user_id'])
-    if not user_exists:
-        session.clear()
-        return redirect(url_for('login'))
-
-    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'],
-                                                                                             is_global=True)
-    if not r.id:
-        db.session.add(r)
-
-    r.cap1_id = int(picks['cap1'])
-    r.cap2_id = int(picks['cap2'])
-    r.cap3_id = int(picks['cap3'])
+    r = Roster.query.filter_by(user_id=session['user_id'], is_global=True).first() or Roster(user_id=session['user_id'], is_global=True)
+    if not r.id: db.session.add(r)
+    r.cap1_id, r.cap2_id, r.cap3_id = int(picks['cap1']), int(picks['cap2']), int(picks['cap3'])
     r.regular_ids = ",".join(picks['regs'])
-
-    try:
-        db.session.commit()
-        flash("Global Tribe saved!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash("Error saving draft.", "danger")
+    db.session.commit()
     return redirect(url_for('index'))
-
-
-@app.route('/player/<string:slug>')
-def player_profile(slug):
-    if slug.isdigit():
-        p = Survivor.query.get_or_404(int(slug))
-    else:
-        p = Survivor.query.filter_by(slug=slug).first_or_404()
-
-    totals = {
-        'surv': sum(1 for s in p.stats if s.survived),
-        'imm': sum(1 for s in p.stats if s.immunity),
-        'score': round(p.points, 1)
-    }
-    return render_template('player_profile.html', p=p, totals=totals)
 
 
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
-    # 1. Type-safe Lookup: Only check ID if the input is numeric
+    # 1. Type-safe Lookup
     if str(code_or_id).isdigit():
-        league = League.query.filter(
-            (League.id == int(code_or_id)) | (League.invite_code == code_or_id)
-        ).first_or_404()
+        league = League.query.filter((League.id == int(code_or_id)) | (League.invite_code == code_or_id)).first_or_404()
     else:
         league = League.query.filter_by(invite_code=code_or_id).first_or_404()
 
@@ -547,31 +405,30 @@ def download_rosters(code_or_id):
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        user_name = r.user.username if r.user else "Unknown"
+        # Relationship name is 'owner' (from line 42 backref)
+        user_name = r.owner.username if r.owner else "Unknown"
 
-        # Change Cast to Survivor here
+        # Lookup Captains via Survivor model
         cap_ids = [r.cap1_id, r.cap2_id, r.cap3_id]
         captains = Survivor.query.filter(Survivor.id.in_([c for c in cap_ids if c])).all()
         for c in captains:
             cw.writerow([user_name, 'Captain', c.name, c.points])
 
-        # Change Cast to Survivor here too
+        # Lookup Regulars via Survivor model
         if r.regular_ids:
             try:
                 reg_id_list = [int(i) for i in str(r.regular_ids).split(',') if i.strip()]
                 regulars = Survivor.query.filter(Survivor.id.in_(reg_id_list)).all()
                 for p in regulars:
                     cw.writerow([user_name, 'Regular', p.name, p.points])
-            except ValueError:
-                continue
+            except ValueError: continue
 
-    # 4. Return the file
     output = make_response(si.getvalue())
-    # Clean league name for filename safety
     safe_name = "".join([c for c in league.name if c.isalnum() or c in (' ', '_')]).rstrip()
     output.headers["Content-Disposition"] = f"attachment; filename={safe_name}_rosters.csv"
     output.headers["Content-type"] = "text/csv"
     return output
+
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
@@ -583,52 +440,26 @@ def admin_scoring():
 
     if request.method == 'POST' and request.is_json:
         data = request.json
-        p_id = data.get('player_id')
-        cat = data.get('category')
-        state = data.get('state')
-        wn = int(data.get('week', 1))
-
+        p_id, cat, state, wn = data.get('player_id'), data.get('category'), data.get('state'), int(data.get('week', 1))
         stat = WeeklyStat.query.filter_by(player_id=p_id, week=wn).first() or WeeklyStat(player_id=p_id, week=wn)
-        if not stat.id:
-            db.session.add(stat)
-
-        if stat.is_locked:
-            return jsonify({"success": False, "error": "This week is locked."}), 403
-
+        if not stat.id: db.session.add(stat)
+        if stat.is_locked: return jsonify({"success": False}), 403
         if hasattr(stat, cat):
             setattr(stat, cat, state)
             db.session.commit()
             p = db.session.get(Survivor, p_id)
-            all_stats = WeeklyStat.query.filter_by(player_id=p_id).all()
-            p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in all_stats)
+            p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in WeeklyStat.query.filter_by(player_id=p_id).all())
             db.session.commit()
             return jsonify({"success": True, "new_total": round(p.points, 1)})
         return jsonify({"success": False}), 400
 
-    survivors = Survivor.query.all()
     view_week = int(request.form.get('week_num') or request.args.get('week', 1))
-
-    if request.method == 'POST':
-        if 'sync_all' in request.form:
-            sync_players()
-            flash("Cast synced.", "success")
-        else:
-            for s in survivors:
-                if request.form.get(f'voted_out_{s.id}'):
-                    s.is_out = True
-                stat = WeeklyStat.query.filter_by(player_id=s.id, week=view_week).first()
-                if stat:
-                    stat.is_locked = True
-            db.session.commit()
-            flash(f"Week {view_week} locked!", "danger")
+    if request.method == 'POST' and 'sync_all' in request.form:
+        sync_players()
         return redirect(url_for('admin_scoring', week=view_week))
 
     stats_list = WeeklyStat.query.filter_by(week=view_week).all()
-    current_stats = {s.player_id: s for s in stats_list}
-    is_locked_week = any(s.is_locked for s in stats_list) if stats_list else False
-
-    return render_template('admin_scoring.html', survivors=survivors, config=POINTS_CONFIG,
-                           week=view_week, current_stats=current_stats, is_locked=is_locked_week)
+    return render_template('admin_scoring.html', survivors=Survivor.query.all(), config=POINTS_CONFIG, week=view_week, current_stats={s.player_id: s for s in stats_list}, is_locked=any(s.is_locked for s in stats_list) if stats_list else False)
 
 
 @app.route('/robots.txt')
@@ -636,73 +467,25 @@ def robots():
     return send_from_directory(app.static_folder, 'robots.txt')
 
 
-@app.route('/sitemap.xml', methods=['GET'])
+@app.route('/sitemap.xml')
 def sitemap():
     pages = []
     now = datetime.now().strftime('%Y-%m-%d')
-    main_functions = ['index', 'global_leaderboard', 'login']
-    for func in main_functions:
-        try:
-            pages.append({"loc": url_for(func, _external=True), "lastmod": now, "priority": "0.8"})
-        except:
-            continue
-    try:
-        players = Survivor.query.all()
-        for p in players:
-            pages.append({"loc": url_for('player_profile', slug=(p.slug or str(p.id)), _external=True),
-                          "lastmod": now, "priority": "0.7"})
-    except:
-        pass
+    for func in ['index', 'global_leaderboard', 'login']:
+        pages.append({"loc": url_for(func, _external=True), "lastmod": now, "priority": "0.8"})
     return Response(render_template('sitemap_template.xml', pages=pages), mimetype='application/xml')
 
 
 @app.route('/trends')
 def draft_trends():
-    submitted_rosters = Roster.query.filter(Roster.cap1_id.isnot(None)).all()
-    total_count = len(submitted_rosters)
-    if total_count == 0: return render_template('trends.html', stats=[], total_users=0)
-
-    all_survivors = Survivor.query.all()
+    submitted = Roster.query.filter(Roster.cap1_id.isnot(None)).all()
+    if not submitted: return render_template('trends.html', stats=[], total_users=0)
     stats_list = []
-    for s in all_survivors:
-        gold = sum(1 for r in submitted_rosters if r.cap1_id == s.id)
-        silver = sum(1 for r in submitted_rosters if r.cap2_id == s.id)
-        bronze = sum(1 for r in submitted_rosters if r.cap3_id == s.id)
-        regs = sum(1 for r in submitted_rosters if r.regular_ids and str(s.id) in r.regular_ids.split(','))
-        total = gold + silver + bronze + regs
-        if total > 0:
-            stats_list.append({'name': s.name, 'slug': s.slug, 'image': s.image_url,
-                               'total_pct': round((total / total_count) * 100, 1),
-                               'gold_pct': round((gold / total_count) * 100, 1), 'count': total})
-    return render_template('trends.html', stats=sorted(stats_list, key=lambda x: x['total_pct'], reverse=True),
-                           total_users=total_count)
-
-
-@app.route('/admin/roster-lookup')
-def roster_lookup():
-    if not session.get('admin_authenticated'): return "Unauthorized", 401
-    all_rosters = Roster.query.all()
-    html = "<h1>Roster Lookup</h1><table border='1'><tr><th>ID</th><th>User</th><th>League</th><th>Regulars</th></tr>"
-    for r in all_rosters:
-        owner = r.owner.username if r.owner else "Unknown"
-        l_info = "GLOBAL" if r.is_global else f"ID: {r.league_id}"
-        html += f"<tr><td>{r.id}</td><td>{owner}</td><td>{l_info}</td><td>{r.regular_ids}</td></tr>"
-    return html + "</table>"
-
-
-@app.route('/admin/force-add-player/<int:roster_id>/<int:player_id>')
-def force_add_player(roster_id, player_id):
-    if not session.get('admin_authenticated'): return "Unauthorized", 401
-    db.session.expire_all()
-    roster = db.session.get(Roster, roster_id)
-    if not roster: return "Roster not found", 404
-    current_list = [rid.strip() for rid in (roster.regular_ids or "").split(',') if rid.strip()]
-    if str(player_id) not in current_list:
-        current_list.append(str(player_id))
-        roster.regular_ids = ",".join(current_list)
-        db.session.commit()
-        return "Success!"
-    return "Already exists."
+    for s in Survivor.query.all():
+        count = sum(1 for r in submitted if r.cap1_id == s.id or r.cap2_id == s.id or r.cap3_id == s.id or (r.regular_ids and str(s.id) in r.regular_ids.split(',')))
+        if count > 0:
+            stats_list.append({'name': s.name, 'slug': s.slug, 'image': s.image_url, 'total_pct': round((count / len(submitted)) * 100, 1), 'count': count})
+    return render_template('trends.html', stats=sorted(stats_list, key=lambda x: x['total_pct'], reverse=True), total_users=len(submitted))
 
 
 @app.route('/nuke_and_pave')
@@ -710,26 +493,7 @@ def nuke_and_pave():
     db.drop_all()
     db.create_all()
     sync_players()
-    return "Reset complete! <a href='/'>Home</a>"
-
-
-# --- MIGRATION & STARTUP ---
-with app.app_context():
-    db.create_all()
-    # Migration handling for existing DBs
-    try:
-        db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
-    except:
-        db.session.rollback()
-        db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
-        db.session.commit()
-        sync_players()
-    try:
-        db.session.execute(text("SELECT is_locked FROM weekly_stat LIMIT 1"))
-    except:
-        db.session.rollback()
-        db.session.execute(text("ALTER TABLE weekly_stat ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
-        db.session.commit()
+    return "Reset complete!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
