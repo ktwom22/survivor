@@ -13,7 +13,7 @@
                 </div>
                 <div>
                     <h5 class="fw-900 uppercase text-accent m-0 ls-1">Critical System Update</h5>
-                    <p class="text-white small m-0">Due to a technical issue, all existing teams and leagues were wiped. <strong>Please re-create your account and lock in your tribe immediately.</strong> We apologize for the inconvenience.</p>
+                    <p class="text-white small m-0">Due to a technical issue, all teams and leagues were wiped. <strong>Please re-create your account and lock in your tribe immediately.</strong> We apologize for the inconvenience.</p>
                 </div>
             </div>
         </div>
@@ -28,11 +28,15 @@
                 <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
                     <div class="px-3 py-2 bg-black-50 border border-secondary rounded backdrop-blur">
                         <div class="x-small fw-900 text-accent uppercase">Time to Lock</div>
-                        <div class="h4 m-0 fw-900 text-white" id="countdown">--:--:--:--</div>
+                        <div class="h4 m-0 fw-900 text-white" id="lock-countdown">--:--:--:--</div>
                     </div>
                     <div class="px-3 py-2 bg-black-50 border border-secondary rounded backdrop-blur">
                         <div class="x-small fw-900 text-accent uppercase">Active Entrants</div>
                         <div class="h4 m-0 fw-900 text-white">{{ total_global_entrants }}</div>
+                    </div>
+                    <div class="px-3 py-2 bg-black-50 border border-secondary rounded backdrop-blur">
+                        <div class="x-small fw-900 text-accent uppercase">Draft Status</div>
+                        <div class="h4 m-0 fw-900 text-white">OPEN</div>
                     </div>
                 </div>
 
@@ -101,7 +105,139 @@
             </div>
         </div>
 
-        </main>
+        <div class="pro-card border-secondary bg-black-50 mb-5 p-4 text-center">
+            <h4 class="fw-900 uppercase text-white mb-2">Master the Draft</h4>
+            <p class="text-white-50 small mb-4">See who the most popular picks are and scout the Season 50 cast before locking in your tribe.</p>
+            <a href="{{ url_for('draft_trends') }}" class="btn btn-outline-accent fw-900 uppercase ls-1">
+                Open Draft Kit & Analytics
+            </a>
+        </div>
+
+        <hr class="border-secondary mb-5" style="opacity: 1 !important; border-width: 2px;">
+
+        <div class="row g-4 text-start">
+            <div class="col-md-6">
+                <div class="pro-card border-ocean h-100 bg-black" style="border-top: 6px solid var(--ocean) !important;">
+                    <h4 class="fw-900 uppercase ls-1 mb-4 text-white">Private Leagues</h4>
+                    {% if user_leagues %}
+                        {% for l in user_leagues %}
+                        <div class="d-flex justify-content-between align-items-center p-3 border-2 border-secondary mb-3 rounded hover-glow">
+                            <div>
+                                <h5 class="fw-900 m-0 text-white">{{ l.name|upper }}</h5>
+                                <small class="text-accent uppercase fw-900" style="font-size: 0.75rem;">CODE: {{ l.invite_code }}</small>
+                            </div>
+                            <a href="{{ url_for('league_dashboard', code=l.invite_code) }}" class="btn btn-ocean btn-sm fw-900 px-4 text-white">DASHBOARD</a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="text-white-50 fw-900 small mb-0">No active leagues. Join a friend or start your own below.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="pro-card border-light h-100 bg-black" style="border-top: 6px solid #ffffff !important;">
+                    <h4 class="fw-900 uppercase ls-1 mb-4 text-white">Join / Create</h4>
+
+                    <form action="{{ url_for('join_league') }}" method="POST" class="mb-4">
+                        <div class="input-group">
+                            <input type="text" name="invite_code" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="INVITE CODE" required>
+                            <button class="btn btn-outline-light fw-900 px-4 border-2" type="submit">JOIN</button>
+                        </div>
+                    </form>
+
+                    <div class="text-center my-3">
+                        <span class="x-small fw-900 text-white-50 uppercase ls-2">— OR —</span>
+                    </div>
+
+                    <form action="{{ url_for('create_league') }}" method="POST">
+                        <div class="input-group">
+                            <input type="text" name="league_name" class="form-control bg-black border-2 border-secondary text-white fw-900 py-2" placeholder="NEW LEAGUE NAME" required>
+                            <button class="btn btn-accent text-dark fw-900 px-4 border-0" type="submit">CREATE</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 pt-5 text-start">
+            <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-2 border-secondary pb-2">
+                <h4 class="fw-900 uppercase ls-1 m-0 text-white">The War Room</h4>
+                <span class="x-small text-accent fw-900 uppercase ls-1 italic">Latest Recaps & Analysis</span>
+            </div>
+
+            <div class="row g-4">
+                {% for video in media %}
+                <div class="col-md-4">
+                    <div class="pro-card bg-black border-secondary h-100 overflow-hidden transition-hover">
+                        <div class="ratio ratio-16x9 position-relative">
+                            <img src="https://img.youtube.com/vi/{{ video.id }}/maxresdefault.jpg" class="img-fluid object-fit-cover" alt="Video">
+                            <a href="https://www.youtube.com/watch?v={{ video.id }}" target="_blank" class="stretched-link d-flex align-items-center justify-content-center">
+                                <div class="bg-accent text-dark rounded-circle p-3 shadow-lg play-btn">
+                                    <i class="fas fa-play"></i>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="p-3">
+                            <span class="badge bg-secondary text-white x-small mb-2">{{ video.channel }}</span>
+                            <h6 class="text-white fw-700 mb-1 small">{{ video.title }}</h6>
+                            <p class="text-white-50 x-small mb-0">{{ video.date }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="cast-section" class="mt-5 pt-5 text-start">
+            <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-2 border-secondary pb-2">
+                <h4 class="fw-900 uppercase ls-1 m-0 text-white">Meet the Cast</h4>
+                <span class="x-small text-white-50 fw-bold uppercase ls-1">Click for bio & stats</span>
+            </div>
+
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+                {% for p in cast %}
+                <div class="col">
+                    <div class="pro-card p-0 border-2 border-secondary h-100 cast-card overflow-hidden position-relative pointer transition-hover"
+                         onclick="showQuickLook(event, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`, `{{ p.slug or p.id }}`)">
+
+                        <div class="cast-img-container">
+                            <img src="{{ p.image_url }}" alt="{{ p.name }}" class="cast-img" loading="lazy">
+                            {% if p.is_out %}
+                                <div class="cast-out-overlay">VOTED OUT</div>
+                            {% endif %}
+                        </div>
+                        <div class="p-2 bg-black text-center border-top border-2 border-secondary">
+                            <p class="x-small fw-900 text-white uppercase mb-0">{{ p.name }}</p>
+                            <div class="x-small text-accent fw-900">{{ p.points|round(1) }} PTS</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+</div>
+
+<div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-accent text-white shadow-lg" style="border-width: 3px !important;">
+            <div class="modal-body p-0 position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top; border-bottom: 3px solid var(--accent);">
+                <div class="p-4 bg-black text-start">
+                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1"></h6>
+                    <h2 id="modalName" class="fw-900 uppercase mb-3 text-white"></h2>
+                    <p id="modalDetails" class="text-white-50 small lh-lg"></p>
+                    <div class="mt-4">
+                        <a id="modalProfileBtn" href="#" class="btn btn-accent btn-lg w-100 fw-900 uppercase ls-1 text-dark">View Season Stats</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -129,39 +265,37 @@
     .pro-card:hover .play-btn { opacity: 0.9; transform: scale(1); }
 
     /* Pulse effect for the critical alert */
-    @keyframes pulse-border {
-        0% { border-color: var(--accent); }
-        50% { border-color: #ffffff; }
-        100% { border-color: var(--accent); }
+    @keyframes alert-pulse {
+        0% { border-color: var(--accent); box-shadow: 0 0 5px var(--accent); }
+        50% { border-color: #ffffff; box-shadow: 0 0 20px var(--accent); }
+        100% { border-color: var(--accent); box-shadow: 0 0 5px var(--accent); }
     }
     .animate-pulse {
-        animation: pulse-border 2s infinite;
+        animation: alert-pulse 2s infinite ease-in-out;
     }
 </style>
 
 <script>
-    // Countdown Timer Logic
-    const lockDate = new Date("March 19, 2026 00:00:00 UTC").getTime();
+    // Countdown Timer for March 18th Reset
+    const lockDate = new Date("March 19, 2026 00:00:00 UTC").getTime(); // Adjust for your timezone if necessary
 
-    const timer = setInterval(function() {
+    const x = setInterval(function() {
         const now = new Date().getTime();
         const distance = lockDate - now;
-
-        if (distance < 0) {
-            clearInterval(timer);
-            document.getElementById("countdown").innerHTML = "LOCKED";
-            return;
-        }
 
         const days = Math.floor(distance / (1000 * 60 * 60 * 24));
         const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-        document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+        document.getElementById("lock-countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+
+        if (distance < 0) {
+            clearInterval(x);
+            document.getElementById("lock-countdown").innerHTML = "LOCKED";
+        }
     }, 1000);
 
-    // Existing Functions
     function showQuickLook(event, name, img, season, details, identifier) {
         if (event) { event.preventDefault(); }
         document.getElementById('modalName').innerText = name;
