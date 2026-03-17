@@ -545,34 +545,33 @@ def download_rosters(code_or_id):
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        # --- SAFE USER LOOKUP ---
-        # Tries 'user', then 'owner', then 'user_id', then defaults to "Unknown"
+        # 1. Identify the Username
         user_obj = getattr(r, 'user', getattr(r, 'owner', None))
-        username = user_obj.username if user_obj and hasattr(user_obj,
-                                                             'username') else f"User_{getattr(r, 'user_id', '???')}"
+        username = user_obj.username if user_obj else "Unknown"
 
-        # --- SAFE CAPTAIN LOOKUP ---
-        c1 = getattr(r, 'cap1', None)
-        c2 = getattr(r, 'cap2', None)
-        c3 = getattr(r, 'cap3', None)
+        # 2. Manually fetch Captains by ID if the relationship attributes are failing
+        # We look up the Player by the ID stored in the roster (e.g., r.cap1_id)
+        c1_obj = Player.query.get(r.cap1_id) if hasattr(r, 'cap1_id') else None
+        c2_obj = Player.query.get(r.cap2_id) if hasattr(r, 'cap2_id') else None
+        c3_obj = Player.query.get(r.cap3_id) if hasattr(r, 'cap3_id') else None
 
-        # --- SAFE REGULARS LOOKUP ---
-        # Tries 'regs', then 'players', then individual 'reg1, reg2, reg3'
+        # 3. Handle Regulars
+        # If r.regs is a list of IDs, we need to query those names
+        reg_names = []
         if hasattr(r, 'regs') and r.regs:
-            reg_list = [p.name for p in r.regs if hasattr(p, 'name')]
-        elif hasattr(r, 'players') and r.players:
-            reg_list = [p.name for p in r.players if hasattr(p, 'name')]
-        else:
-            # Check for individual columns reg1, reg2, reg3
-            regs_raw = [getattr(r, f'reg{i}', None) for i in range(1, 4)]
-            reg_list = [p.name for p in regs_raw if p and hasattr(p, 'name')]
+            # If r.regs is a list of player objects
+            if isinstance(r.regs[0], Player):
+                reg_names = [p.name for p in r.regs]
+            # If r.regs is a list of IDs (common in some Flask setups)
+            else:
+                reg_names = [p.name for p in Player.query.filter(Player.id.in_(r.regs)).all()]
 
         cw.writerow([
             username,
-            c1.name if (c1 and hasattr(c1, 'name')) else "N/A",
-            c2.name if (c2 and hasattr(c2, 'name')) else "N/A",
-            c3.name if (c3 and hasattr(c3, 'name')) else "N/A",
-            ", ".join(reg_list)
+            c1_obj.name if c1_obj else "N/A",
+            c2_obj.name if c2_obj else "N/A",
+            c3_obj.name if c3_obj else "N/A",
+            ", ".join(reg_names)
         ])
 
     output = make_response(si.getvalue())
