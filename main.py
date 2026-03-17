@@ -712,13 +712,6 @@ def force_add_player(roster_id, player_id):
     return "Already exists."
 
 
-@app.route('/nuke_and_pave')
-def nuke_and_pave():
-    db.drop_all()
-    db.create_all()
-    sync_players()
-    return "Reset complete! <a href='/'>Home</a>"
-
 
 # --- MIGRATION & STARTUP ---
 with app.app_context():
