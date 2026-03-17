@@ -7,16 +7,16 @@
             <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">League Standings</h6>
             <div class="list-group list-group-flush bg-black mb-3">
                 {% for e in leaderboard %}
-                {# Linked to allow viewing others, though currently your route shows 'my_tribe' only #}
-                <div class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2">
-                    <span class="small {% if e.user == session.username %}text-accent fw-900{% else %}text-white{% endif %}">
+                <a href="/league/{{ league.invite_code }}?view_user={{ e.user }}"
+                   class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2 text-decoration-none transition">
+                    <span class="small {% if e.user == target_username %}text-accent fw-900{% else %}text-white{% endif %}">
                         {{ e.user|upper }}
                         {% if e.user == session.username %}<span class="x-small text-white-50">(YOU)</span>{% endif %}
                     </span>
-                    <span class="fw-900 {% if e.user == session.username %}text-accent{% else %}text-white-50{% endif %}">
+                    <span class="fw-900 {% if e.user == target_username %}text-accent{% else %}text-white-50{% endif %}">
                         {{ e.score|round(1) }}
                     </span>
-                </div>
+                </a>
                 {% endfor %}
             </div>
 
@@ -29,16 +29,20 @@
         <div class="pro-card border-accent bg-black shadow-sm">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Scoring Rules</h6>
             <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
-                {% for key, val in league_pts.items() %}
-                    {% if val != 0 %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
-                        <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
-                        <span class="small fw-900 {% if val < 0 %}text-danger{% else %}text-white{% endif %}">
-                            {% if val > 0 %}+{% endif %}{{ val }}
-                        </span>
-                    </div>
-                    {% endif %}
-                {% endfor %}
+                {% if league_pts and league_pts is mapping %}
+                    {% for key, val in league_pts.items() %}
+                        {% if val != 0 %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+                            <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
+                            <span class="small fw-900 {% if val < 0 %}text-danger{% else %}text-white{% endif %}">
+                                {% if val > 0 %}+{% endif %}{{ val }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="text-white-50 x-small italic">Rules loading...</div>
+                {% endif %}
             </div>
             <p class="x-small text-white-50 mt-3 mb-0" style="font-size: 0.55rem; font-style: italic;">
                 * Multipliers: Gold (2x), Silver (1.5x), Bronze (1.25x).
@@ -47,33 +51,11 @@
     </div>
 
     <div class="col-md-9 order-1 order-md-2">
-
-        {# Weekly Bonus Questions (Only if not locked) #}
-        {% if weekly_qs and not is_locked %}
-        <div class="pro-card border-warning mb-4 bg-dark">
-            <h6 class="fw-900 text-warning mb-2 small uppercase">Weekly Bonus Questions</h6>
-            <form action="/league/{{ league.invite_code }}/submit_bonus" method="POST">
-                {% for q in weekly_qs %}
-                <div class="mb-3">
-                    <p class="small text-white mb-2">{{ q.text }}</p>
-                    <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="q_{{ q.id }}" value="Yes" id="y{{ q.id }}" required>
-                        <label class="btn btn-outline-success btn-sm" for="y{{ q.id }}">YES</label>
-                        <input type="radio" class="btn-check" name="q_{{ q.id }}" value="No" id="n{{ q.id }}">
-                        <label class="btn btn-outline-danger btn-sm" for="n{{ q.id }}">NO</label>
-                    </div>
-                </div>
-                {% endfor %}
-                <button type="submit" class="btn btn-warning btn-sm w-100 fw-900 uppercase">Submit Answers</button>
-            </form>
-        </div>
-        {% endif %}
-
         {% if my_tribe and my_tribe.cap1 %}
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 border-bottom border-secondary pb-3 gap-2">
                 <div>
-                    <h2 class="fw-900 uppercase m-0">{{ session.username|upper }}'S TRIBE</h2>
-                    <div class="small fw-900 uppercase ls-2 text-success">Active Roster {% if is_locked %}🔒{% else %}🔓{% endif %}</div>
+                    <h2 class="fw-900 uppercase m-0">{{ target_username|upper }}'S TRIBE</h2>
+                    <div class="small fw-900 uppercase ls-2 text-success">Active Roster 🔒</div>
                 </div>
                 <div class="text-md-end">
                     <div class="small fw-900 text-white-50 uppercase" style="font-size: 0.6rem;">Total Tribe Score</div>
@@ -89,14 +71,14 @@
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (my_tribe.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
-                    <a href="/player/{{ cap.slug }}" class="text-decoration-none mb-3 d-block">
+                    <a href="/player/{{ cap.slug or cap.id }}" class="text-decoration-none mb-3 d-block">
                         <div class="pro-card p-2 border-start tribe-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
                             <div class="d-flex align-items-center">
                                 <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
                                 <div class="flex-grow-1 ms-3">
                                     <div class="fw-900 uppercase ls-1" style="font-size: 0.6rem; color: {{ color }}">{{ label }} ({{ mult }}x)</div>
                                     <h5 class="fw-900 m-0 uppercase text-white">{{ cap.name }}</h5>
-                                    <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points|round(1) }} Base Pts</div>
+                                    <div class="x-small text-white-50">S{{ cap.season }} • {{ cap.points }} Base Pts</div>
                                 </div>
                                 <div class="text-end pe-2">
                                     <div class="x-small fw-900 text-white-50">TOTAL</div>
@@ -112,7 +94,7 @@
             <div class="row g-2">
                 {% for p in my_tribe.regs %}
                 <div class="col-6 col-md-4">
-                    <a href="/player/{{ p.slug }}" class="text-decoration-none h-100 d-block">
+                    <a href="/player/{{ p.slug or p.id }}" class="text-decoration-none h-100 d-block">
                         <div class="pro-card border-secondary p-0 overflow-hidden h-100 tribe-member-card">
                             <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
                             <div class="p-2 text-center bg-black">
@@ -125,7 +107,7 @@
                 {% endfor %}
             </div>
 
-        {% elif not is_locked %}
+        {% elif target_username == session.username %}
             <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
                     <h2 class="fw-900 uppercase text-accent m-0 ls-1">Assembling Your Tribe</h2>
@@ -161,7 +143,7 @@
                         <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
-                                        onclick="showQuickLook(event, `{{ p.slug }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('\"','\\\"') }}`)">ⓘ</button>
+                                        onclick="showQuickLook(event, `{{ p.slug or p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('\"','\\\"') }}`)">ⓘ</button>
 
                                 <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
@@ -176,16 +158,119 @@
                     <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 3 Regulars</button>
                 </form>
             </div>
-        {% else %}
-            <div class="pro-card border-danger text-center p-5">
-                <i class="fas fa-lock fa-3x text-danger mb-3"></i>
-                <h2 class="fw-900 uppercase">Rosters are Locked</h2>
-                <p class="text-white-50">Drafting is closed for the current week.</p>
-            </div>
         {% endif %}
     </div>
 </div>
 
-{# Quick Look Modal & JS remain largely the same, but ensure p.slug is used #}
+<div class="modal fade" id="quickLookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-black border-accent text-white shadow-lg">
+            <div class="modal-body p-0 position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="modalImg" src="" class="w-100" style="height: 350px; object-fit: cover; object-position: top;">
+                <div class="p-4 bg-gradient-dark">
+                    <h6 id="modalSeason" class="text-accent fw-900 uppercase ls-2 mb-1 small"></h6>
+                    <h2 id="modalName" class="fw-900 uppercase mb-2"></h2>
+                    <p id="modalDetails" class="text-white-50 small lh-lg mb-4"></p>
+                    <a id="modalProfileLink" href="#" class="btn btn-accent btn-sm fw-900 uppercase ls-1 w-100">View Season Stats 📊</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tribe-member-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+    .tribe-member-card:hover { transform: translateY(-5px); border-color: var(--accent) !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+    .btn-info-pop {
+        position: absolute; top: 5px; right: 5px; z-index: 50;
+        background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 50%; width: 26px; height: 26px; font-size: 13px;
+        display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+        transition: 0.2s; cursor: pointer;
+    }
+    .btn-info-pop:hover { background: var(--accent); color: black; border-color: var(--accent); transform: scale(1.1); }
+    .player-card-label { border-radius: 6px; overflow: hidden; transition: 0.2s; border-color: rgba(255,255,255,0.1) !important; cursor: pointer; }
+    .btn-check:checked + .player-card-label { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); transform: scale(0.96); }
+    .btn-check:disabled + .player-card-label { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
+    .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
+    .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
+    .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
+    .hidden { display: none !important; }
+    .rules-list::-webkit-scrollbar { width: 4px; }
+    .rules-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+</style>
+
+<script>
+    function showQuickLook(event, slug, name, img, season, details) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        const modalEl = document.getElementById('quickLookModal');
+        document.getElementById('modalName').innerText = name;
+        document.getElementById('modalImg').src = img;
+        document.getElementById('modalSeason').innerText = "Season: " + season;
+        document.getElementById('modalDetails').innerText = details;
+        document.getElementById('modalProfileLink').href = "/player/" + slug;
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    document.getElementById('playerSearch')?.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.player-item').forEach(item => {
+            item.classList.toggle('hidden', !item.getAttribute('data-name').includes(term));
+        });
+    });
+
+    const capSelects = document.querySelectorAll('.cap-select');
+    const regChecks = document.querySelectorAll('.reg-cb');
+    const btn = document.getElementById('submitBtn');
+    const counter = document.getElementById('counter');
+
+    function syncDraftPicks() {
+        const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
+        const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
+
+        // Prevent duplicate Captains
+        capSelects.forEach(s => {
+            const currentVal = s.value;
+            Array.from(s.options).forEach(opt => {
+                if (opt.value === "") return;
+                const pickedElsewhere = Array.from(capSelects).some(other => other !== s && other.value === opt.value);
+                opt.disabled = pickedElsewhere;
+            });
+        });
+
+        // Prevent Captains from being Regulars and limit Regulars to 3
+        regChecks.forEach(cb => {
+            if (selectedCapIds.includes(cb.value)) {
+                cb.checked = false;
+                cb.disabled = true;
+            } else {
+                if (currentRegCount >= 3 && !cb.checked) {
+                    cb.disabled = true;
+                } else {
+                    cb.disabled = false;
+                }
+            }
+        });
+
+        if (counter) counter.innerText = `${currentRegCount} / 3`;
+
+        // Enable Submit if complete
+        if (currentRegCount === 3 && selectedCapIds.length === 3) {
+            btn.disabled = false;
+            btn.classList.replace('btn-secondary', 'btn-accent');
+            btn.classList.remove('opacity-50');
+            btn.innerText = "LOCK IN TRIBE 🔒";
+        } else {
+            btn.disabled = true;
+            btn.classList.replace('btn-accent', 'btn-secondary');
+            btn.classList.add('opacity-50');
+            btn.innerText = currentRegCount < 3 ? `SELECT ${3 - currentRegCount} MORE REGULARS` : "COMPLETE CAPTAIN PICKS";
+        }
+    }
+
+    capSelects.forEach(s => s.addEventListener('change', syncDraftPicks));
+    regChecks.forEach(c => c.addEventListener('change', syncDraftPicks));
+</script>
 
 {% endblock %}
