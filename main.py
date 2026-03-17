@@ -530,12 +530,16 @@ def player_profile(slug):
 
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
-    # 1. Get the league
-    league = League.query.filter(
-        (League.invite_code == code_or_id) | (League.id == code_or_id)
-    ).first_or_404()
+    # 1. Type-safe Query: Check if we are looking for an ID (int) or a Code (string)
+    if code_or_id.isdigit():
+        league = League.query.filter(
+            (League.id == int(code_or_id)) | (League.invite_code == code_or_id)
+        ).first_or_404()
+    else:
+        # If it contains letters (like BFAEE8), only search the invite_code column
+        league = League.query.filter_by(invite_code=code_or_id).first_or_404()
 
-    # 2. Setup the CSV buffer
+    # 2. Setup CSV Buffer
     import csv
     from io import StringIO
     si = StringIO()
@@ -544,23 +548,22 @@ def download_rosters(code_or_id):
     # 3. Headers
     cw.writerow(['User', 'Captain_Gold', 'Captain_Silver', 'Captain_Bronze', 'Regulars'])
 
-    # 4. Get all rosters for this league
-    # Adjust 'Roster' to whatever your model name is
+    # 4. Get Rosters (Ensure the relationship names match your Model)
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        # Get names of regulars (assuming it's a list or relationship)
+        # Join regular player names into one string
         reg_names = ", ".join([p.name for p in r.regs]) if r.regs else ""
 
         cw.writerow([
-            r.user.username,
+            r.user.username if r.user else "Unknown",
             r.cap1.name if r.cap1 else "N/A",
             r.cap2.name if r.cap2 else "N/A",
             r.cap3.name if r.cap3 else "N/A",
             reg_names
         ])
 
-    # 5. Return the file
+    # 5. Return Response
     output = make_response(si.getvalue())
     output.headers["Content-Disposition"] = f"attachment; filename={league.invite_code}_rosters.csv"
     output.headers["Content-type"] = "text/csv"
