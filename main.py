@@ -530,51 +530,53 @@ def player_profile(slug):
 
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
-    # 1. Type-safe Query: Check if we are looking for an ID (int) or a Code (string)
+    # 1. Type-safe League Lookup
     if code_or_id.isdigit():
-        league = League.query.filter(
-            (League.id == int(code_or_id)) | (League.invite_code == code_or_id)
-        ).first_or_404()
+        league = League.query.filter((League.id == int(code_or_id)) | (League.invite_code == code_or_id)).first_or_404()
     else:
-        # If it contains letters (like BFAEE8), only search the invite_code column
         league = League.query.filter_by(invite_code=code_or_id).first_or_404()
 
-    # 2. Setup CSV Buffer
     import csv
     from io import StringIO
     si = StringIO()
     cw = csv.writer(si)
+    cw.writerow(['User', 'Gold_Cap', 'Silver_Cap', 'Bronze_Cap', 'Regulars'])
 
-    # 3. Headers
-    cw.writerow(['User', 'Captain_Gold', 'Captain_Silver', 'Captain_Bronze', 'Regulars'])
-
-    # 4. Get Rosters (Ensure the relationship names match your Model)
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        # Attempt to gather regular players based on common naming patterns
-        # 1. Check if they are individual columns (reg1, reg2, reg3)
-        if hasattr(r, 'reg1'):
-            regs = [r.reg1, r.reg2, r.reg3]
-            reg_names = ", ".join([p.name for p in regs if p])
-        # 2. Check if the relationship is named 'players' instead of 'regs'
-        elif hasattr(r, 'players'):
-            reg_names = ", ".join([p.name for p in r.players])
-        # 3. Fallback: Empty string if no regulars found
+        # --- SAFE USER LOOKUP ---
+        # Tries 'user', then 'owner', then 'user_id', then defaults to "Unknown"
+        user_obj = getattr(r, 'user', getattr(r, 'owner', None))
+        username = user_obj.username if user_obj and hasattr(user_obj,
+                                                             'username') else f"User_{getattr(r, 'user_id', '???')}"
+
+        # --- SAFE CAPTAIN LOOKUP ---
+        c1 = getattr(r, 'cap1', None)
+        c2 = getattr(r, 'cap2', None)
+        c3 = getattr(r, 'cap3', None)
+
+        # --- SAFE REGULARS LOOKUP ---
+        # Tries 'regs', then 'players', then individual 'reg1, reg2, reg3'
+        if hasattr(r, 'regs') and r.regs:
+            reg_list = [p.name for p in r.regs if hasattr(p, 'name')]
+        elif hasattr(r, 'players') and r.players:
+            reg_list = [p.name for p in r.players if hasattr(p, 'name')]
         else:
-            reg_names = "No Regulars Found"
+            # Check for individual columns reg1, reg2, reg3
+            regs_raw = [getattr(r, f'reg{i}', None) for i in range(1, 4)]
+            reg_list = [p.name for p in regs_raw if p and hasattr(p, 'name')]
 
         cw.writerow([
-            r.user.username if r.user else "Unknown",
-            r.cap1.name if (hasattr(r, 'cap1') and r.cap1) else "N/A",
-            r.cap2.name if (hasattr(r, 'cap2') and r.cap2) else "N/A",
-            r.cap3.name if (hasattr(r, 'cap3') and r.cap3) else "N/A",
-            reg_names
+            username,
+            c1.name if (c1 and hasattr(c1, 'name')) else "N/A",
+            c2.name if (c2 and hasattr(c2, 'name')) else "N/A",
+            c3.name if (c3 and hasattr(c3, 'name')) else "N/A",
+            ", ".join(reg_list)
         ])
 
-    # 5. Return Response
     output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = f"attachment; filename={league.invite_code}_rosters.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename=League_{league.invite_code}_Rosters.csv"
     output.headers["Content-type"] = "text/csv"
     return output
 
