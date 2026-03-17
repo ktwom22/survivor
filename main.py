@@ -552,14 +552,23 @@ def download_rosters(code_or_id):
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        # Join regular player names into one string
-        reg_names = ", ".join([p.name for p in r.regs]) if r.regs else ""
+        # Attempt to gather regular players based on common naming patterns
+        # 1. Check if they are individual columns (reg1, reg2, reg3)
+        if hasattr(r, 'reg1'):
+            regs = [r.reg1, r.reg2, r.reg3]
+            reg_names = ", ".join([p.name for p in regs if p])
+        # 2. Check if the relationship is named 'players' instead of 'regs'
+        elif hasattr(r, 'players'):
+            reg_names = ", ".join([p.name for p in r.players])
+        # 3. Fallback: Empty string if no regulars found
+        else:
+            reg_names = "No Regulars Found"
 
         cw.writerow([
             r.user.username if r.user else "Unknown",
-            r.cap1.name if r.cap1 else "N/A",
-            r.cap2.name if r.cap2 else "N/A",
-            r.cap3.name if r.cap3 else "N/A",
+            r.cap1.name if (hasattr(r, 'cap1') and r.cap1) else "N/A",
+            r.cap2.name if (hasattr(r, 'cap2') and r.cap2) else "N/A",
+            r.cap3.name if (hasattr(r, 'cap3') and r.cap3) else "N/A",
             reg_names
         ])
 
