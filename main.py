@@ -528,6 +528,43 @@ def player_profile(slug):
     return render_template('player_profile.html', p=p, totals=totals)
 
 
+@app.route('/league/<code_or_id>/download_rosters')
+def download_rosters(code_or_id):
+    # 1. Find the league
+    league = League.query.filter((League.invite_code == code_or_id) | (League.id == code_or_id)).first_or_404()
+
+    # 2. Setup CSV
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['User', 'Role', 'Survivor Name', 'Base Points'])
+
+    # 3. Get all rosters for this league
+    rosters = Roster.query.filter_by(league_id=league.id).all()
+
+    for r in rosters:
+        user_name = r.user.username if r.user else "Unknown"
+
+        # Helper to get names from your Cast table
+        def get_names(ids):
+            if not ids: return []
+            # Handling both single IDs and comma-separated strings
+            id_list = [int(i) for i in str(ids).split(',') if i.strip()]
+            return Cast.query.filter(Cast.id.in_(id_list)).all()
+
+        # Add Captains
+        for c in get_names([r.cap1_id, r.cap2_id, r.cap3_id]):
+            cw.writerow([user_name, 'Captain', c.name, c.points])
+
+        # Add Regulars
+        for p in get_names(r.regular_ids):
+            cw.writerow([user_name, 'Regular', p.name, p.points])
+
+    # 4. Return the file
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename={league.name}_rosters.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
     if not session.get('admin_authenticated'):

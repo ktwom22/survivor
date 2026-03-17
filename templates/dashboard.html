@@ -29,16 +29,21 @@
         <div class="pro-card border-accent bg-black shadow-sm">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Scoring Rules</h6>
             <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
-                {% for key, val in league_pts.items() %}
-                    {% if val != 0 %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
-                        <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
-                        <span class="small fw-900 {% if val < 0 %}text-danger{% else %}text-white{% endif %}">
-                            {% if val > 0 %}+{% endif %}{{ val }}
-                        </span>
-                    </div>
-                    {% endif %}
-                {% endfor %}
+                {# Safety Check: Ensure league_pts is a dict before calling .items() #}
+                {% if league_pts and league_pts is mapping %}
+                    {% for key, val in league_pts.items() %}
+                        {% if val != 0 %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+                            <span class="x-small text-white-50 uppercase fw-bold" style="font-size: 0.6rem;">{{ key|replace('_', ' ') }}</span>
+                            <span class="small fw-900 {% if val < 0 %}text-danger{% else %}text-white{% endif %}">
+                                {% if val > 0 %}+{% endif %}{{ val }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="text-white-50 x-small italic">Rules loading...</div>
+                {% endif %}
             </div>
             <p class="x-small text-white-50 mt-3 mb-0" style="font-size: 0.55rem; font-style: italic;">
                 * Multipliers: Gold (2x), Silver (1.5x), Bronze (1.25x).
