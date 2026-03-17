@@ -528,33 +528,42 @@ def player_profile(slug):
     return render_template('player_profile.html', p=p, totals=totals)
 
 
-@app.route('/download-draft-data')
-def download_draft_data():
-    # 1. Query with joins to get everything in one go
-    # This joins User -> Roster -> Player (or however your draft is structured)
-    results = db.session.query(User, League, Roster).join(League).join(Roster).all()
+@app.route('/league/<code_or_id>/download_rosters')
+def download_rosters(code_or_id):
+    # 1. Get the league
+    league = League.query.filter(
+        (League.invite_code == code_or_id) | (League.id == code_or_id)
+    ).first_or_404()
 
-    # 2. Setup the in-memory file
+    # 2. Setup the CSV buffer
+    import csv
+    from io import StringIO
     si = StringIO()
     cw = csv.writer(si)
 
-    # 3. Write Header
-    cw.writerow(['User Name', 'League Name', 'Drafted Player', 'Draft Slot'])
+    # 3. Headers
+    cw.writerow(['User', 'Captain_Gold', 'Captain_Silver', 'Captain_Bronze', 'Regulars'])
 
-    # 4. Write Data Rows
-    for user, league, roster in results:
+    # 4. Get all rosters for this league
+    # Adjust 'Roster' to whatever your model name is
+    rosters = Roster.query.filter_by(league_id=league.id).all()
+
+    for r in rosters:
+        # Get names of regulars (assuming it's a list or relationship)
+        reg_names = ", ".join([p.name for p in r.regs]) if r.regs else ""
+
         cw.writerow([
-            user.username,
-            league.name,
-            roster.player_name,
-            roster.draft_round
+            r.user.username,
+            r.cap1.name if r.cap1 else "N/A",
+            r.cap2.name if r.cap2 else "N/A",
+            r.cap3.name if r.cap3 else "N/A",
+            reg_names
         ])
 
-    # 5. Create the response
+    # 5. Return the file
     output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = "attachment; filename=league_drafts.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename={league.invite_code}_rosters.csv"
     output.headers["Content-type"] = "text/csv"
-
     return output
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
