@@ -530,14 +530,15 @@ def player_profile(slug):
 
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
-    # 1. Type-safe League Lookup
+    # 1. League Lookup
     if code_or_id.isdigit():
         league = League.query.filter((League.id == int(code_or_id)) | (League.invite_code == code_or_id)).first_or_404()
     else:
         league = League.query.filter_by(invite_code=code_or_id).first_or_404()
 
-    import csv
-    from io import StringIO
+    # 2. Safety check: Ensure the Player model is accessible
+    # This prevents the "NameError" by looking up the model in the global namespace
+    _Player = globals().get('Player')
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow(['User', 'Gold_Cap', 'Silver_Cap', 'Bronze_Cap', 'Regulars'])
@@ -545,32 +546,28 @@ def download_rosters(code_or_id):
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        # 1. Identify the Username
         user_obj = getattr(r, 'user', getattr(r, 'owner', None))
         username = user_obj.username if user_obj else "Unknown"
 
-        # 2. Manually fetch Captains by ID if the relationship attributes are failing
-        # We look up the Player by the ID stored in the roster (e.g., r.cap1_id)
-        c1_obj = Player.query.get(r.cap1_id) if hasattr(r, 'cap1_id') else None
-        c2_obj = Player.query.get(r.cap2_id) if hasattr(r, 'cap2_id') else None
-        c3_obj = Player.query.get(r.cap3_id) if hasattr(r, 'cap3_id') else None
+        # Use _Player (the one we safely found) to get the data
+        c1 = _Player.query.get(r.cap1_id) if (hasattr(r, 'cap1_id') and _Player) else None
+        c2 = _Player.query.get(r.cap2_id) if (hasattr(r, 'cap2_id') and _Player) else None
+        c3 = _Player.query.get(r.cap3_id) if (hasattr(r, 'cap3_id') and _Player) else None
 
-        # 3. Handle Regulars
-        # If r.regs is a list of IDs, we need to query those names
+        # Resolve Regulars
         reg_names = []
-        if hasattr(r, 'regs') and r.regs:
-            # If r.regs is a list of player objects
-            if isinstance(r.regs[0], Player):
+        if hasattr(r, 'regs') and r.regs and _Player:
+            # Handle if regs is a list of player objects or a list of IDs
+            if isinstance(r.regs[0], _Player):
                 reg_names = [p.name for p in r.regs]
-            # If r.regs is a list of IDs (common in some Flask setups)
             else:
-                reg_names = [p.name for p in Player.query.filter(Player.id.in_(r.regs)).all()]
+                reg_names = [p.name for p in _Player.query.filter(_Player.id.in_(r.regs)).all()]
 
         cw.writerow([
             username,
-            c1_obj.name if c1_obj else "N/A",
-            c2_obj.name if c2_obj else "N/A",
-            c3_obj.name if c3_obj else "N/A",
+            c1.name if c1 else "N/A",
+            c2.name if c2 else "N/A",
+            c3.name if c3 else "N/A",
             ", ".join(reg_names)
         ])
 
