@@ -143,7 +143,7 @@
                         <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
-                                        onclick="showQuickLook(event, `{{ p.slug or p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('\"','\\\"') }}`)">ⓘ</button>
+                                        onclick="showQuickLook(event, `{{ p.slug or p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('\"','\\\"')|replace('\n', ' ') }}`)">ⓘ</button>
 
                                 <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
@@ -231,7 +231,6 @@
 
         // Prevent duplicate Captains
         capSelects.forEach(s => {
-            const currentVal = s.value;
             Array.from(s.options).forEach(opt => {
                 if (opt.value === "") return;
                 const pickedElsewhere = Array.from(capSelects).some(other => other !== s && other.value === opt.value);
@@ -255,7 +254,7 @@
 
         if (counter) counter.innerText = `${currentRegCount} / 3`;
 
-        // Enable Submit if complete
+        // Validation for the Submit Button
         if (currentRegCount === 3 && selectedCapIds.length === 3) {
             btn.disabled = false;
             btn.classList.replace('btn-secondary', 'btn-accent');
@@ -265,7 +264,11 @@
             btn.disabled = true;
             btn.classList.replace('btn-accent', 'btn-secondary');
             btn.classList.add('opacity-50');
-            btn.innerText = currentRegCount < 3 ? `SELECT ${3 - currentRegCount} MORE REGULARS` : "COMPLETE CAPTAIN PICKS";
+            if (selectedCapIds.length < 3) {
+                btn.innerText = "COMPLETE CAPTAIN PICKS";
+            } else {
+                btn.innerText = `SELECT ${3 - currentRegCount} MORE REGULARS`;
+            }
         }
     }
 
