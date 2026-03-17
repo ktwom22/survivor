@@ -7,7 +7,7 @@
             <h6 class="fw-900 uppercase ls-2 mb-3 text-white-50 small">League Standings</h6>
             <div class="list-group list-group-flush bg-black mb-3">
                 {% for e in leaderboard %}
-                <a href="{{ url_for('league_dashboard', code=league.invite_code, view_user=e.user) }}"
+                <a href="/league/{{ league.invite_code }}?view_user={{ e.user }}"
                    class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center px-0 py-2 text-decoration-none transition">
                     <span class="small {% if e.user == target_username %}text-accent fw-900{% else %}text-white{% endif %}">
                         {{ e.user|upper }}
@@ -20,7 +20,7 @@
                 {% endfor %}
             </div>
 
-            <a href="{{ url_for('download_rosters', code_or_id=league.invite_code) }}"
+            <a href="/league/{{ league.invite_code }}/download_rosters"
                class="btn btn-ocean w-100 fw-900 uppercase ls-1 btn-sm py-2 shadow-sm">
                 <i class="fas fa-file-csv me-2"></i>Download Rosters
             </a>
@@ -29,7 +29,6 @@
         <div class="pro-card border-accent bg-black shadow-sm">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Scoring Rules</h6>
             <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
-                {# Safety Check: Ensure league_pts is a dict before calling .items() #}
                 {% if league_pts and league_pts is mapping %}
                     {% for key, val in league_pts.items() %}
                         {% if val != 0 %}
@@ -72,7 +71,7 @@
                     (my_tribe.cap2, 1.5, 'Silver Captain', '#ffffff'),
                     (my_tribe.cap3, 1.25, 'Bronze Captain', '#64748b')
                 ] %}
-                    <a href="{{ url_for('player_profile', slug=cap.slug or cap.id|string) }}" class="text-decoration-none mb-3 d-block">
+                    <a href="/player/{{ cap.slug or cap.id }}" class="text-decoration-none mb-3 d-block">
                         <div class="pro-card p-2 border-start tribe-member-card" style="border-left-width: 5px !important; border-left-color: {{ color }} !important;">
                             <div class="d-flex align-items-center">
                                 <img src="{{ cap.image_url }}" class="rounded shadow-sm" style="width: 75px; height: 75px; object-fit: cover; object-position: top;">
@@ -95,7 +94,7 @@
             <div class="row g-2">
                 {% for p in my_tribe.regs %}
                 <div class="col-6 col-md-4">
-                    <a href="{{ url_for('player_profile', slug=p.slug or p.id|string) }}" class="text-decoration-none h-100 d-block">
+                    <a href="/player/{{ p.slug or p.id }}" class="text-decoration-none h-100 d-block">
                         <div class="pro-card border-secondary p-0 overflow-hidden h-100 tribe-member-card">
                             <img src="{{ p.image_url }}" class="w-100" style="height: 120px; object-fit: cover; object-position: top;">
                             <div class="p-2 text-center bg-black">
@@ -119,7 +118,7 @@
                     <input type="text" id="playerSearch" class="form-control bg-black text-white border-secondary py-2" placeholder="Search Survivor Name...">
                 </div>
 
-                <form action="{{ url_for('draft', code=league.invite_code) }}" method="POST" id="draftForm">
+                <form action="/draft/{{ league.invite_code }}" method="POST" id="draftForm">
                     <div class="row g-2 mb-4">
                         {% for cap_key, label, color in [('cap1', 'Gold (2x)', 'var(--accent)'), ('cap2', 'Silver (1.5x)', '#fff'), ('cap3', 'Bronze (1.25x)', '#64748b')] %}
                         <div class="col-12 col-md-4">
@@ -144,7 +143,7 @@
                         <div class="col-4 col-md-2 player-item" data-name="{{ p.name.lower() }}" data-id="{{ p.id }}">
                             <div class="position-relative h-100">
                                 <button type="button" class="btn-info-pop"
-                                        onclick="showQuickLook(event, `{{ p.slug or p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('`','\\`') }}`)">ⓘ</button>
+                                        onclick="showQuickLook(event, `{{ p.slug or p.id }}`, `{{ p.name }}`, `{{ p.image_url }}`, `{{ p.season }}`, `{{ p.details|replace('\"','\\\"') }}`)">ⓘ</button>
 
                                 <input type="checkbox" name="regs" value="{{ p.id }}" id="reg{{ p.id }}" class="btn-check reg-cb">
                                 <label class="btn btn-outline-secondary p-0 border-2 w-100 player-card-label" for="reg{{ p.id }}">
@@ -181,7 +180,7 @@
 </div>
 
 <style>
-    .tribe-member-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .tribe-member-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
     .tribe-member-card:hover { transform: translateY(-5px); border-color: var(--accent) !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
     .btn-info-pop {
         position: absolute; top: 5px; right: 5px; z-index: 50;
@@ -197,7 +196,7 @@
     .name-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: white; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; padding: 3px 0; text-align: center; }
     .btn-check:checked + .player-card-label .name-overlay { background: var(--accent); color: black; }
     .bg-gradient-dark { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     .rules-list::-webkit-scrollbar { width: 4px; }
     .rules-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 </style>
@@ -230,7 +229,9 @@
         const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
         const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
 
+        // Prevent duplicate Captains
         capSelects.forEach(s => {
+            const currentVal = s.value;
             Array.from(s.options).forEach(opt => {
                 if (opt.value === "") return;
                 const pickedElsewhere = Array.from(capSelects).some(other => other !== s && other.value === opt.value);
@@ -238,6 +239,7 @@
             });
         });
 
+        // Prevent Captains from being Regulars and limit Regulars to 3
         regChecks.forEach(cb => {
             if (selectedCapIds.includes(cb.value)) {
                 cb.checked = false;
@@ -253,6 +255,7 @@
 
         if (counter) counter.innerText = `${currentRegCount} / 3`;
 
+        // Enable Submit if complete
         if (currentRegCount === 3 && selectedCapIds.length === 3) {
             btn.disabled = false;
             btn.classList.replace('btn-secondary', 'btn-accent');
