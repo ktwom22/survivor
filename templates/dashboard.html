@@ -26,27 +26,6 @@
             </a>
         </div>
 
-        {% if weekly_qs and weekly_qs|length > 0 and not is_locked %}
-        <div class="pro-card border-warning mb-4 bg-dark shadow-sm animate__animated animate__fadeIn">
-            <h6 class="fw-900 uppercase ls-2 mb-3 text-warning small">Bonus Questions</h6>
-            <form action="/league/{{ league.invite_code }}/submit_bonus" method="POST">
-                {% for q in weekly_qs %}
-                <div class="mb-3 border-bottom border-secondary pb-2">
-                    <p class="x-small text-white mb-2 fw-bold">{{ q.text }}</p>
-                    <div class="btn-group w-100">
-                        <input type="radio" class="btn-check" name="q_{{ q.id }}" value="Yes" id="y{{ q.id }}" required>
-                        <label class="btn btn-outline-success btn-xs py-1 uppercase fw-900" style="font-size: 0.6rem;" for="y{{ q.id }}">YES</label>
-
-                        <input type="radio" class="btn-check" name="q_{{ q.id }}" value="No" id="n{{ q.id }}">
-                        <label class="btn btn-outline-danger btn-xs py-1 uppercase fw-900" style="font-size: 0.6rem;" for="n{{ q.id }}">NO</label>
-                    </div>
-                </div>
-                {% endfor %}
-                <button type="submit" class="btn btn-warning btn-sm w-100 fw-900 uppercase ls-1 mt-2">Submit Answers</button>
-            </form>
-        </div>
-        {% endif %}
-
         <div class="pro-card border-accent bg-black shadow-sm">
             <h6 class="fw-900 uppercase ls-2 mb-3 text-accent small">Scoring Rules</h6>
             <div class="rules-list" style="max-height: 400px; overflow-y: auto;">
@@ -220,7 +199,6 @@
     .hidden { display: none !important; }
     .rules-list::-webkit-scrollbar { width: 4px; }
     .rules-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-    .btn-xs { padding: 0.15rem 0.3rem; font-size: 0.65rem; }
 </style>
 
 <script>
@@ -251,7 +229,9 @@
         const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
         const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
 
+        // Prevent duplicate Captains
         capSelects.forEach(s => {
+            const currentVal = s.value;
             Array.from(s.options).forEach(opt => {
                 if (opt.value === "") return;
                 const pickedElsewhere = Array.from(capSelects).some(other => other !== s && other.value === opt.value);
@@ -259,17 +239,23 @@
             });
         });
 
+        // Prevent Captains from being Regulars and limit Regulars to 3
         regChecks.forEach(cb => {
             if (selectedCapIds.includes(cb.value)) {
                 cb.checked = false;
                 cb.disabled = true;
             } else {
-                cb.disabled = (currentRegCount >= 3 && !cb.checked);
+                if (currentRegCount >= 3 && !cb.checked) {
+                    cb.disabled = true;
+                } else {
+                    cb.disabled = false;
+                }
             }
         });
 
         if (counter) counter.innerText = `${currentRegCount} / 3`;
 
+        // Enable Submit if complete
         if (currentRegCount === 3 && selectedCapIds.length === 3) {
             btn.disabled = false;
             btn.classList.replace('btn-secondary', 'btn-accent');
