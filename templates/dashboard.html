@@ -51,6 +51,7 @@
     </div>
 
     <div class="col-md-9 order-1 order-md-2">
+        {# UPDATED LOGIC: Only show Tribe view if cap1 is actually set #}
         {% if my_tribe and my_tribe.cap1 %}
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 border-bottom border-secondary pb-3 gap-2">
                 <div>
@@ -107,6 +108,7 @@
                 {% endfor %}
             </div>
 
+        {# UPDATED LOGIC: If looking at your own profile and tribe isn't set, show draft #}
         {% elif target_username == session.username %}
             <div class="pro-card border-accent p-3 p-md-4 shadow-lg">
                 <div class="mb-4 text-center">
@@ -157,6 +159,11 @@
 
                     <button type="submit" id="submitBtn" class="btn btn-secondary w-100 fw-900 py-3 uppercase ls-2 opacity-50" disabled>Select 3 Regulars</button>
                 </form>
+            </div>
+        {% else %}
+            {# Case: Viewing someone else who hasn't drafted yet #}
+            <div class="text-center py-5">
+                <h3 class="fw-900 text-white-50 uppercase">No Tribe Submitted Yet</h3>
             </div>
         {% endif %}
     </div>
@@ -229,7 +236,6 @@
         const selectedCapIds = Array.from(capSelects).map(s => s.value).filter(v => v !== "");
         const currentRegCount = Array.from(regChecks).filter(c => c.checked).length;
 
-        // Prevent duplicate Captains
         capSelects.forEach(s => {
             Array.from(s.options).forEach(opt => {
                 if (opt.value === "") return;
@@ -238,7 +244,6 @@
             });
         });
 
-        // Prevent Captains from being Regulars and limit Regulars to 3
         regChecks.forEach(cb => {
             if (selectedCapIds.includes(cb.value)) {
                 cb.checked = false;
@@ -254,7 +259,6 @@
 
         if (counter) counter.innerText = `${currentRegCount} / 3`;
 
-        // Validation for the Submit Button
         if (currentRegCount === 3 && selectedCapIds.length === 3) {
             btn.disabled = false;
             btn.classList.replace('btn-secondary', 'btn-accent');

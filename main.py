@@ -171,10 +171,13 @@ def sync_players():
 
 
 def get_roster_data(roster):
-    if not roster: return None
-    c1 = db.session.get(Survivor, roster.cap1_id) if roster.cap1_id else None
+    if not roster or not roster.cap1_id:  # If no roster or no Gold Captain, treat as "Not Drafted"
+        return None
+
+    c1 = db.session.get(Survivor, roster.cap1_id)
     c2 = db.session.get(Survivor, roster.cap2_id) if roster.cap2_id else None
     c3 = db.session.get(Survivor, roster.cap3_id) if roster.cap3_id else None
+
     reg_list = []
     if roster.regular_ids:
         ids = [rid.strip() for rid in roster.regular_ids.split(',') if rid.strip()]
