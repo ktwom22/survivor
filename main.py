@@ -530,38 +530,40 @@ def player_profile(slug):
 
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
-    # 1. League Lookup
+    # 1. League Lookup (Handles both Invite Code and Database ID)
     if code_or_id.isdigit():
         league = League.query.filter((League.id == int(code_or_id)) | (League.invite_code == code_or_id)).first_or_404()
     else:
         league = League.query.filter_by(invite_code=code_or_id).first_or_404()
 
-    # 2. Safety check: Ensure the Player model is accessible
-    # This prevents the "NameError" by looking up the model in the global namespace
-    _Player = globals().get('Player')
+    # 2. Setup CSV
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow(['User', 'Gold_Cap', 'Silver_Cap', 'Bronze_Cap', 'Regulars'])
 
+    # 3. Get all rosters for this specific league
     rosters = Roster.query.filter_by(league_id=league.id).all()
 
     for r in rosters:
-        user_obj = getattr(r, 'user', getattr(r, 'owner', None))
-        username = user_obj.username if user_obj else "Unknown"
+        # Get username from the 'owner' backref defined in your User model
+        username = r.owner.username if r.owner else "Unknown"
 
-        # Use _Player (the one we safely found) to get the data
-        c1 = _Player.query.get(r.cap1_id) if (hasattr(r, 'cap1_id') and _Player) else None
-        c2 = _Player.query.get(r.cap2_id) if (hasattr(r, 'cap2_id') and _Player) else None
-        c3 = _Player.query.get(r.cap3_id) if (hasattr(r, 'cap3_id') and _Player) else None
+        # Look up Captains from the Survivor table using cap_ids
+        c1 = db.session.get(Survivor, r.cap1_id) if r.cap1_id else None
+        c2 = db.session.get(Survivor, r.cap2_id) if r.cap2_id else None
+        c3 = db.session.get(Survivor, r.cap3_id) if r.cap3_id else None
 
-        # Resolve Regulars
+        # Resolve Regulars (Parsing the comma-separated string 'regular_ids')
         reg_names = []
-        if hasattr(r, 'regs') and r.regs and _Player:
-            # Handle if regs is a list of player objects or a list of IDs
-            if isinstance(r.regs[0], _Player):
-                reg_names = [p.name for p in r.regs]
-            else:
-                reg_names = [p.name for p in _Player.query.filter(_Player.id.in_(r.regs)).all()]
+        if r.regular_ids:
+            # Split "1,2,3" into [1, 2, 3]
+            try:
+                ids = [int(rid.strip()) for rid in r.regular_ids.split(',') if rid.strip()]
+                # Query all names in one go for efficiency
+                players = Survivor.query.filter(Survivor.id.in_(ids)).all()
+                reg_names = [p.name for p in players]
+            except ValueError:
+                reg_names = ["Error parsing IDs"]
 
         cw.writerow([
             username,
@@ -571,7 +573,9 @@ def download_rosters(code_or_id):
             ", ".join(reg_names)
         ])
 
+    # 4. Return as downloadable file
     output = make_response(si.getvalue())
+    # Filename includes the league code for easy organization
     output.headers["Content-Disposition"] = f"attachment; filename=League_{league.invite_code}_Rosters.csv"
     output.headers["Content-type"] = "text/csv"
     return output
