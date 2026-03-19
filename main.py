@@ -171,35 +171,37 @@ def sync_players():
 
 
 def get_roster_data(roster):
-    # If the roster exists, we FORCE it to return SOMETHING
-    if not roster:
+    if not roster or not roster.cap1_id:
         return None
 
-    # Get Captains - with a fallback to ID 1 if the ID is missing
-    c1_id = int(roster.cap1_id) if roster.cap1_id else 1
-    c2_id = int(roster.cap2_id) if roster.cap2_id else 1
-    c3_id = int(roster.cap3_id) if roster.cap3_id else 1
+    try:
+        # 1. Get the Captains (Ensure they are ints)
+        cap1 = Survivor.query.get(int(roster.cap1_id))
+        cap2 = Survivor.query.get(int(roster.cap2_id))
+        cap3 = Survivor.query.get(int(roster.cap3_id))
 
-    cap1 = Survivor.query.get(c1_id)
-    cap2 = Survivor.query.get(c2_id)
-    cap3 = Survivor.query.get(c3_id)
+        # 2. Clean the Regular IDs string (Remove spaces/trailing commas)
+        raw_ids = roster.regular_ids.strip().strip(',')
+        if not raw_ids:
+            regs = []
+        else:
+            # This 'map' handles any " 7" or "10 " spaces automatically
+            id_list = [int(i.strip()) for i in raw_ids.split(',') if i.strip()]
+            regs = [Survivor.query.get(sid) for sid in id_list]
 
-    # Process Regulars and ignore any empty/bad IDs
-    regs = []
-    if roster.regular_ids:
-        # This part removes spaces and empty strings automatically
-        clean_ids = [int(i.strip()) for i in roster.regular_ids.split(',') if i.strip()]
-        for sid in clean_ids:
-            s = Survivor.query.get(sid)
-            if s:
-                regs.append(s)
+        # 3. Final Safety Check: If ANY captain is missing from DB, return None
+        if not cap1 or not cap2 or not cap3:
+            return None
 
-    return {
-        'cap1': cap1,
-        'cap2': cap2,
-        'cap3': cap3,
-        'regs': regs
-    }
+        return {
+            'cap1': cap1,
+            'cap2': cap2,
+            'cap3': cap3,
+            'regs': regs
+        }
+    except Exception as e:
+        print(f"Roster Error for ID {roster.id}: {e}")
+        return None
 
 
 def calculate_roster_score(roster, pts_config):
@@ -705,13 +707,6 @@ def admin_update_roster(roster_id):
 
     return redirect(url_for('admin_manage_all'))
 
-
-@app.route('/admin/check-survivors')
-def check_survivors():
-    all_s = Survivor.query.all()
-    # This will print a list of every ID you actually have in the system
-    ids = [str(s.id) for s in all_s]
-    return f"Valid Survivor IDs in your DB: {', '.join(ids)}"
 
 @app.route('/admin/final-fix-10')
 def final_fix_10():
