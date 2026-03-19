@@ -1,68 +1,88 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mt-4" style="background: #111; color: #fff; padding: 20px; border: 2px solid #FFD700;">
-    <h1 class="text-warning">LEAGUE & ROSTER OVERRIDE</h1>
-    <p>Current Server Time: {{ now }} (Lock: March 18 @ 8PM EST)</p>
+<style>
+    .player-card { border: 1px solid #444; transition: 0.2s; }
+    .player-card:hover { border-color: #FFD700; transform: scale(1.02); }
+    .player-card.selected { background-color: #FFD700 !important; color: #000 !important; font-weight: bold; border: 2px solid #fff; }
+    .table-dark { --bs-table-bg: #111; }
+</style>
+
+<div class="container mt-4" style="background: #000; color: #fff; padding: 30px; border: 3px solid #FFD700; border-radius: 15px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-warning mb-0">OVERRIDE COMMAND CENTER</h1>
+        <div class="text-end">
+            <p class="mb-0 text-muted">Server Time: {{ now }}</p>
+            <span class="badge bg-danger">ADMIN MODE ACTIVE</span>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <input type="text" id="adminSearch" class="form-control bg-dark text-warning border-warning" placeholder="Search by Username (e.g. KyleT)...">
+    </div>
 
     {% for league in leagues %}
-    <div class="card mb-4 bg-dark border-secondary">
-        <div class="card-header d-flex justify-content-between">
-            <h3 class="text-info">{{ league.name }} (ID: {{ league.id }})</h3>
-            <span class="badge bg-primary">Invite Code: {{ league.invite_code }}</span>
+    <div class="card mb-5 bg-dark border-secondary">
+        <div class="card-header bg-secondary d-flex justify-content-between align-items-center">
+            <h4 class="mb-0 text-white">{{ league.name }} <small class="text-light">(ID: {{ league.id }})</small></h4>
+            <span class="badge bg-dark border border-warning">CODE: {{ league.invite_code }}</span>
         </div>
-        <div class="card-body">
-            <table class="table table-dark table-striped">
+        <div class="card-body p-0">
+            <table class="table table-dark table-hover mb-0">
                 <thead>
-                    <tr>
-                        <th>Roster ID</th>
-                        <th>User</th>
-                        <th>Gold Cap (2x)</th>
-                        <th>Silver (1.5x)</th>
-                        <th>Bronze (1.25x)</th>
-                        <th>Regulars</th>
-                        <th>Action</th>
+                    <tr class="text-warning" style="font-size: 0.8rem;">
+                        <th>ID</th>
+                        <th>USER</th>
+                        <th>GOLD (2x)</th>
+                        <th>SILVER (1.5x)</th>
+                        <th>BRONZE (1.25x)</th>
+                        <th>BENCH</th>
+                        <th>ACTIONS</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="rosterTable">
                     {% for r in league.rosters %}
-                    <form action="{{ url_for('admin_edit_roster', roster_id=r.id) }}" method="POST">
-                        <tr>
-                            <td>{{ r.id }}</td>
-                            <td><strong>{{ r.owner.username if r.owner else "N/A" }}</strong></td>
-                            
-                            <td>
-                                <select name="cap1" class="form-select form-select-sm">
-                                    {% for s in all_survivors %}
-                                    <option value="{{ s.id }}" {% if r.cap1_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
+                    <tr>
+                        <form action="{{ url_for('admin_edit_roster', roster_id=r.id) }}" method="POST">
+                        <td class="text-muted">{{ r.id }}</td>
+                        <td class="username-cell"><strong>{{ r.owner.username if r.owner else "Guest" }}</strong></td>
 
-                            <td>
-                                <select name="cap2" class="form-select form-select-sm">
-                                    {% for s in all_survivors %}
-                                    <option value="{{ s.id }}" {% if r.cap2_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
+                        <td>
+                            <select name="cap1" class="form-select form-select-sm bg-black text-warning">
+                                {% for s in all_survivors %}
+                                <option value="{{ s.id }}" {% if r.cap1_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="cap2" class="form-select form-select-sm bg-black text-white">
+                                {% for s in all_survivors %}
+                                <option value="{{ s.id }}" {% if r.cap2_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="cap3" class="form-select form-select-sm bg-black text-white">
+                                {% for s in all_survivors %}
+                                <option value="{{ s.id }}" {% if r.cap3_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
 
-                            <td>
-                                <select name="cap3" class="form-select form-select-sm">
-                                    {% for s in all_survivors %}
-                                    <option value="{{ s.id }}" {% if r.cap3_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
+                        <td>
+                            <input type="hidden" name="regular_ids" id="reg_input_{{ r.id }}" value="{{ r.regular_ids }}">
+                            <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="openPicker({{ r.id }}, '{{ r.regular_ids }}')">
+                                Edit (<span id="count_{{ r.id }}">{{ r.regular_ids.split(',')|length if r.regular_ids else 0 }}</span>)
+                            </button>
+                        </td>
 
-                            <td>
-                                <input type="text" name="regular_ids" value="{{ r.regular_ids }}" class="form-control form-control-sm">
-                            </td>
-
-                            <td>
-                                <button type="submit" class="btn btn-warning btn-sm">Update</button>
-                            </td>
-                        </tr>
-                    </form>
+                        <td>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-warning btn-sm">Save</button>
+                                <a href="{{ url_for('admin_delete_roster', roster_id=r.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this roster?')">X</a>
+                            </div>
+                        </td>
+                        </form>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -70,4 +90,73 @@
     </div>
     {% endfor %}
 </div>
+
+<div class="modal fade" id="playerPickerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white border-warning">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Regular Players</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row row-cols-2 row-cols-md-4 g-2" id="pickerGrid">
+                    {% for s in all_survivors %}
+                    <div class="col">
+                        <div class="card h-100 bg-secondary player-card" onclick="togglePlayer(this, {{ s.id }})" data-id="{{ s.id }}">
+                            <div class="card-body p-2 text-center" style="font-size: 0.8rem;">{{ s.name }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-warning w-100" onclick="saveSelection()">Confirm Bench</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentRosterId = null;
+let selectedIds = [];
+
+// Search Function
+document.getElementById('adminSearch').addEventListener('keyup', function() {
+    let filter = this.value.toLowerCase();
+    document.querySelectorAll('#rosterTable tr').forEach(row => {
+        let username = row.querySelector('.username-cell').innerText.toLowerCase();
+        row.style.display = username.includes(filter) ? '' : 'none';
+    });
+});
+
+// Modal Logic
+function openPicker(rosterId, currentVal) {
+    currentRosterId = rosterId;
+    selectedIds = currentVal ? currentVal.split(',').map(v => parseInt(v.trim())) : [];
+
+    document.querySelectorAll('.player-card').forEach(card => {
+        const id = parseInt(card.getAttribute('data-id'));
+        if (selectedIds.includes(id)) card.classList.add('selected');
+        else card.classList.remove('selected');
+    });
+
+    new bootstrap.Modal(document.getElementById('playerPickerModal')).show();
+}
+
+function togglePlayer(element, id) {
+    if (selectedIds.includes(id)) {
+        selectedIds = selectedIds.filter(i => i !== id);
+        element.classList.remove('selected');
+    } else {
+        selectedIds.push(id);
+        element.classList.add('selected');
+    }
+}
+
+function saveSelection() {
+    document.getElementById('reg_input_' + currentRosterId).value = selectedIds.join(',');
+    document.getElementById('count_' + currentRosterId).innerText = selectedIds.length;
+    bootstrap.Modal.getInstance(document.getElementById('playerPickerModal')).hide();
+}
+</script>
 {% endblock %}

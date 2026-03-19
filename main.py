@@ -649,21 +649,58 @@ def draft_trends():
                            total_users=total_count)
 
 
+# --- ADMIN MANAGEMENT ROUTES ---
+# --- ADMIN MANAGEMENT ROUTES ---
+
 @app.route('/admin/manage-all')
 def admin_manage_all():
-    # Only allow authenticated admins
+    """Main dashboard to see every league and roster."""
     if not session.get('admin_authenticated'):
         return redirect(url_for('admin_scoring'))
 
-    # Get all leagues and pre-load their rosters and owners
     leagues = League.query.all()
-
-    # We also need the survivor list for the edit dropdowns
     all_survivors = Survivor.query.all()
-
     return render_template('admin_manage.html',
                            leagues=leagues,
-                           all_survivors=all_survivors)
+                           all_survivors=all_survivors,
+                           now=datetime.now().strftime("%I:%M %p"))
+
+
+@app.route('/admin/edit_roster/<int:roster_id>', methods=['POST'])
+def admin_edit_roster(roster_id):
+    """Saves edits from the admin table (Bypasses the 8PM Lock)."""
+    if not session.get('admin_authenticated'):
+        abort(403)
+
+    roster = Roster.query.get_or_404(roster_id)
+    try:
+        # Update Captains
+        roster.cap1_id = int(request.form.get('cap1'))
+        roster.cap2_id = int(request.form.get('cap2'))
+        roster.cap3_id = int(request.form.get('cap3'))
+
+        # Update Regulars (Comma separated string from hidden input)
+        roster.regular_ids = request.form.get('regular_ids', "")
+
+        db.session.commit()
+        flash(f"SUCCESS: Updated Roster #{roster_id}", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"DATABASE ERROR: {str(e)}", "danger")
+
+    return redirect(url_for('admin_manage_all'))
+
+
+@app.route('/admin/delete_roster/<int:roster_id>')
+def admin_delete_roster(roster_id):
+    """Deletes duplicate or empty rosters."""
+    if not session.get('admin_authenticated'):
+        abort(403)
+    r = Roster.query.get_or_404(roster_id)
+    db.session.delete(r)
+    db.session.commit()
+    flash("Roster deleted.", "info")
+    return redirect(url_for('admin_manage_all'))
 
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
