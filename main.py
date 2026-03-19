@@ -663,118 +663,42 @@ def draft_trends():
                            total_users=total_count)
 
 
-@app.route('/admin/fix-by-url')
-def fix_by_url():
+@app.route('/admin/force-roster-16')
+def force_roster_16():
     if not session.get('admin_authenticated'):
         return "Admin Login Required", 403
 
-    # 1. Pull the data directly from the URL parameters
-    invite_code = request.args.get('invite')
-    username = request.args.get('user')
+    # 1. Manually find the User and League by their IDs
+    # User ID 10 and League ID 2 (Comeonin)
+    user = User.query.get(10)
+    league = League.query.get(2)
 
-    # 2. Find the League and User
-    league = League.query.filter_by(invite_code=invite_code).first()
-    user = User.query.filter_by(username=username).first()
+    if not user or not league:
+        return "Critical Error: User 10 or League 2 does not exist in the database."
 
-    if not league or not user:
-        return f"Error: League ({invite_code}) or User ({username}) not found.", 404
-
-    # 3. Target Roster 16 and Force the Update
+    # 2. Force the Roster 16 update
     roster = Roster.query.get(16)
     if not roster:
-        # Fallback: If 16 doesn't exist, try to find ANY roster for this user/league combo
-        roster = Roster.query.filter_by(user_id=user.id, league_id=league.id).first()
+        # Create it if it somehow vanished
+        roster = Roster(id=16, user_id=10, league_id=2)
+        db.session.add(roster)
 
-    if roster:
-        roster.user_id = user.id
-        roster.league_id = league.id
-        roster.cap1_id = 2
-        roster.cap2_id = 3
-        roster.cap3_id = 4
-        roster.regular_ids = "7,10,24"
-        roster.is_global = False
-
-        try:
-            db.session.commit()
-            return f"SUCCESS: Roster #{roster.id} updated for {username} in {league.name}."
-        except Exception as e:
-            db.session.rollback()
-            return f"Database Error: {str(e)}"
-
-    return "No roster found to update. Ensure User 10 has joined League 2 first."
-
-@app.route('/admin/manage-all')
-def admin_manage_all():
-    if not session.get('admin_authenticated'):
-        return redirect(url_for('admin_scoring'))
-
-    leagues = League.query.all()
-    all_survivors = Survivor.query.all()
-    # Pull all rosters directly to bypass relationship issues
-    all_rosters = Roster.query.all()
-
-    return render_template('admin_manage.html',
-                           leagues=leagues,
-                           all_survivors=all_survivors,
-                           all_rosters=all_rosters)
-
-
-@app.route('/admin/update_roster/<int:roster_id>', methods=['GET', 'POST'])
-def admin_update_roster(roster_id):
-    if not session.get('admin_authenticated'):
-        return "Admin Login Required", 403
-
-    roster = db.session.get(Roster, roster_id)
-    if not roster:
-        return "Roster Not Found", 404
-
-    if request.method == 'POST':
-        try:
-            # Force values to integers for the database
-            roster.cap1_id = int(request.form.get('cap1'))
-            roster.cap2_id = int(request.form.get('cap2'))
-            roster.cap3_id = int(request.form.get('cap3'))
-            roster.regular_ids = request.form.get('regular_ids', "")
-
-            db.session.commit()
-            flash(f"Roster {roster_id} updated!", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Error: {str(e)}", "danger")
-
-    return redirect(url_for('admin_manage_all'))
-
-
-@app.route('/admin/final-fix-10')
-def final_fix_10():
-    if not session.get('admin_authenticated'):
-        return "Unauthorized", 403
-
-    # 1. Fetch the roster
-    r = Roster.query.get(16)
-    if not r:
-        return "Roster 16 not found. Check the ID in your Override Center.", 404
-
-    # 2. Force the correct connections
-    r.user_id = 10
-    r.league_id = 2
-    r.is_global = False  # Ensure it's not accidentally set to True
-
-    # 3. Clean up the IDs (No spaces, pure integers)
-    r.cap1_id = 2
-    r.cap2_id = 3
-    r.cap3_id = 4
-    r.regular_ids = "7,10,24"
-
-    # 4. DELETE any other rosters for User 10 in this league that might be "blocking" it
-    Roster.query.filter(Roster.user_id == 10, Roster.league_id == 2, Roster.id != 16).delete()
+    # Force all connections and data
+    roster.user_id = 10
+    roster.league_id = 2
+    roster.cap1_id = 2
+    roster.cap2_id = 3
+    roster.cap3_id = 4
+    roster.regular_ids = "7,10,24"
+    roster.is_global = False
 
     try:
         db.session.commit()
-        return "FIXED: Roster 16 is now the ONLY roster for User 10 in League 2. Refresh their dashboard."
+        return f"SUCCESS: Roster 16 fixed for {user.username}. Check the dashboard now."
     except Exception as e:
         db.session.rollback()
-        return f"Error: {str(e)}"
+        return f"Database Error: {str(e)}"
+
 
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
