@@ -662,25 +662,28 @@ def admin_manage_all():
     return render_template('admin_manage.html', leagues=leagues, all_survivors=all_survivors)
 
 
-@app.route('/admin/update_roster/<int:roster_id>', methods=['POST'])
+@app.route('/admin/update_roster/<int:roster_id>', methods=['GET', 'POST'])
 def admin_update_roster(roster_id):
     if not session.get('admin_authenticated'):
-        return "Unauthorized", 403
+        return "Admin Login Required", 403
 
-    roster = Roster.query.get_or_404(roster_id)
+    roster = db.session.get(Roster, roster_id)
+    if not roster:
+        return "Roster Not Found", 404
 
-    try:
-        # Force cast to integers to prevent "No Tribe" errors in helpers
-        roster.cap1_id = int(request.form.get('cap1'))
-        roster.cap2_id = int(request.form.get('cap2'))
-        roster.cap3_id = int(request.form.get('cap3'))
-        roster.regular_ids = request.form.get('regular_ids', "")
+    if request.method == 'POST':
+        try:
+            # Force values to integers for the database
+            roster.cap1_id = int(request.form.get('cap1'))
+            roster.cap2_id = int(request.form.get('cap2'))
+            roster.cap3_id = int(request.form.get('cap3'))
+            roster.regular_ids = request.form.get('regular_ids', "")
 
-        db.session.commit()
-        flash(f"Roster {roster_id} updated successfully!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
+            db.session.commit()
+            flash(f"Roster {roster_id} updated!", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error: {str(e)}", "danger")
 
     return redirect(url_for('admin_manage_all'))
 
