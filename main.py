@@ -652,57 +652,29 @@ def draft_trends():
 # --- ADMIN MANAGEMENT ROUTES ---
 # --- ADMIN MANAGEMENT ROUTES ---
 
-@app.route('/admin/manage-all')
-def admin_manage_all():
-    """Main dashboard to see every league and roster."""
+@app.route('/admin/repair-roster-16')
+def repair_16():
+    # Only you can trigger this
     if not session.get('admin_authenticated'):
-        return redirect(url_for('admin_scoring'))
+        return "Please login at /admin/scoring first", 403
 
-    leagues = League.query.all()
-    all_survivors = Survivor.query.all()
-    return render_template('admin_manage.html',
-                           leagues=leagues,
-                           all_survivors=all_survivors,
-                           now=datetime.now().strftime("%I:M %p"))
+    # Target Roster 16
+    roster = Roster.query.get(16)
+    if not roster:
+        return "Roster 16 not found in database", 404
 
+    # Apply your specific IDs
+    roster.cap1_id = 2
+    roster.cap2_id = 3
+    roster.cap3_id = 4
+    roster.regular_ids = "7,10,24"
 
-@app.route('/admin/edit_roster/<int:roster_id>', methods=['GET', 'POST'])
-def admin_edit_roster(roster_id):
-    if not session.get('admin_authenticated'):
-        return "Not Authenticated", 403
-
-    roster = Roster.query.get_or_404(roster_id)
-
-    if request.method == 'POST':
-        try:
-            # Debug: This will show in your terminal
-            print(f"Updating Roster {roster_id}: Cap1={request.form.get('cap1')}")
-
-            roster.cap1_id = int(request.form.get('cap1'))
-            roster.cap2_id = int(request.form.get('cap2'))
-            roster.cap3_id = int(request.form.get('cap3'))
-            roster.regular_ids = request.form.get('regular_ids', "")
-
-            db.session.commit()
-            flash(f"Updated Roster #{roster_id}!", "success")
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error: {e}")
-            flash(f"Error: {str(e)}", "danger")
-
-    return redirect(url_for('admin_manage_all'))
-
-
-@app.route('/admin/delete_roster/<int:roster_id>')
-def admin_delete_roster(roster_id):
-    """Deletes duplicate or empty rosters."""
-    if not session.get('admin_authenticated'):
-        abort(403)
-    r = Roster.query.get_or_404(roster_id)
-    db.session.delete(r)
-    db.session.commit()
-    flash("Roster deleted.", "info")
-    return redirect(url_for('admin_manage_all'))
+    try:
+        db.session.commit()
+        return "Roster 16 Updated: Caps(2,3,4) Bench(7,10,24). You can delete this route now."
+    except Exception as e:
+        db.session.rollback()
+        return f"Database Error: {str(e)}"
 
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
