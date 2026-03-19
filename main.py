@@ -663,31 +663,30 @@ def admin_manage_all():
     return render_template('admin_manage.html',
                            leagues=leagues,
                            all_survivors=all_survivors,
-                           now=datetime.now().strftime("%I:%M %p"))
+                           now=datetime.now().strftime("%I:M %p"))
 
 
-@app.route('/admin/edit_roster/<int:roster_id>', methods=['POST'])
+@app.route('/admin/edit_roster/<int:roster_id>', methods=['GET', 'POST'])  # Add GET here
 def admin_edit_roster(roster_id):
-    """Saves edits from the admin table (Bypasses the 8PM Lock)."""
     if not session.get('admin_authenticated'):
         abort(403)
 
     roster = Roster.query.get_or_404(roster_id)
-    try:
-        # Update Captains
-        roster.cap1_id = int(request.form.get('cap1'))
-        roster.cap2_id = int(request.form.get('cap2'))
-        roster.cap3_id = int(request.form.get('cap3'))
 
-        # Update Regulars (Comma separated string from hidden input)
-        roster.regular_ids = request.form.get('regular_ids', "")
+    if request.method == 'POST':
+        try:
+            roster.cap1_id = int(request.form.get('cap1'))
+            roster.cap2_id = int(request.form.get('cap2'))
+            roster.cap3_id = int(request.form.get('cap3'))
+            roster.regular_ids = request.form.get('regular_ids', "")
+            db.session.commit()
+            flash(f"Updated Roster #{roster_id}", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error: {str(e)}", "danger")
+        return redirect(url_for('admin_manage_all'))
 
-        db.session.commit()
-        flash(f"SUCCESS: Updated Roster #{roster_id}", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"DATABASE ERROR: {str(e)}", "danger")
-
+    # If someone tries to GET the link, just send them back to the dashboard
     return redirect(url_for('admin_manage_all'))
 
 
