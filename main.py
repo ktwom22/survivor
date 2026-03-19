@@ -652,29 +652,34 @@ def draft_trends():
 # --- ADMIN MANAGEMENT ROUTES ---
 # --- ADMIN MANAGEMENT ROUTES ---
 
-@app.route('/admin/repair-roster-16')
-def repair_16():
-    # Only you can trigger this
+@app.route('/admin/force-fix-16')
+def force_fix_16():
     if not session.get('admin_authenticated'):
-        return "Please login at /admin/scoring first", 403
+        return "Login at /admin/scoring first", 403
 
-    # Target Roster 16
-    roster = Roster.query.get(16)
+    # Use a direct query to ensure we find it
+    roster = Roster.query.filter_by(id=16).first()
+
     if not roster:
-        return "Roster 16 not found in database", 404
+        # If 16 doesn't exist, let's create it for User 10 in League 2
+        roster = Roster(id=16, user_id=10, league_id=2)
+        db.session.add(roster)
 
-    # Apply your specific IDs
+    # Apply the exact IDs you provided
+    roster.user_id = 10
+    roster.league_id = 2
     roster.cap1_id = 2
     roster.cap2_id = 3
     roster.cap3_id = 4
     roster.regular_ids = "7,10,24"
+    roster.is_global = False  # Ensure it's in the league, not global
 
     try:
         db.session.commit()
-        return "Roster 16 Updated: Caps(2,3,4) Bench(7,10,24). You can delete this route now."
+        return "SUCCESS: Roster 16 is now hard-coded for User 10. Refresh the dashboard."
     except Exception as e:
         db.session.rollback()
-        return f"Database Error: {str(e)}"
+        return f"Error: {str(e)}"
 
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
