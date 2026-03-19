@@ -707,6 +707,38 @@ def admin_update_roster(roster_id):
 
     return redirect(url_for('admin_manage_all'))
 
+
+@app.route('/admin/final-fix-10')
+def final_fix_10():
+    if not session.get('admin_authenticated'):
+        return "Unauthorized", 403
+
+    # 1. Fetch the roster
+    r = Roster.query.get(16)
+    if not r:
+        return "Roster 16 not found. Check the ID in your Override Center.", 404
+
+    # 2. Force the correct connections
+    r.user_id = 10
+    r.league_id = 2
+    r.is_global = False  # Ensure it's not accidentally set to True
+
+    # 3. Clean up the IDs (No spaces, pure integers)
+    r.cap1_id = 2
+    r.cap2_id = 3
+    r.cap3_id = 4
+    r.regular_ids = "7,10,24"
+
+    # 4. DELETE any other rosters for User 10 in this league that might be "blocking" it
+    Roster.query.filter(Roster.user_id == 10, Roster.league_id == 2, Roster.id != 16).delete()
+
+    try:
+        db.session.commit()
+        return "FIXED: Roster 16 is now the ONLY roster for User 10 in League 2. Refresh their dashboard."
+    except Exception as e:
+        db.session.rollback()
+        return f"Error: {str(e)}"
+
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
     db.create_all()
