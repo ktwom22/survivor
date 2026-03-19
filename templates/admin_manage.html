@@ -1,18 +1,19 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mt-4" style="background: #000; color: #fff; padding: 20px; border: 2px solid #FFD700;">
+<div class="container mt-4" style="background: #000; color: #fff; padding: 20px; border: 2px solid #FFD700; border-radius: 8px;">
     <h1 class="text-warning mb-4">ROSTER OVERRIDE CENTER</h1>
 
     {% for league in leagues %}
-    <div class="card mb-5 bg-dark border-secondary">
+    <div class="card mb-5 bg-dark border-secondary shadow">
         <div class="card-header bg-primary text-white">
-            <h3 class="mb-0">{{ league.name }} (ID: {{ league.id }}) | Code: {{ league.invite_code }}</h3>
+            <h3 class="mb-0">{{ league.name }} (ID: {{ league.id }})</h3>
+            <small class="text-light">Code: {{ league.invite_code }}</small>
         </div>
         <div class="table-responsive">
             <table class="table table-dark table-hover mb-0">
                 <thead>
-                    <tr>
-                        <th>Roster ID</th>
+                    <tr class="text-warning">
+                        <th>ID</th>
                         <th>User (ID)</th>
                         <th>Gold</th>
                         <th>Silver</th>
@@ -22,14 +23,15 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% set count = [] %}
                     {% for r in all_rosters %}
                         {% if r.league_id == league.id %}
-                        {% do count.append(1) %}
                         <tr>
                             <form action="/admin/update_roster/{{ r.id }}" method="POST">
-                                <td>#{{ r.id }}</td>
-                                <td>{{ r.owner.username if r.owner else "Guest" }} ({{ r.user_id }})</td>
+                                <td class="align-middle">#{{ r.id }}</td>
+                                <td class="align-middle">
+                                    {{ r.owner.username if r.owner else "Guest" }}
+                                    <small class="text-muted">({{ r.user_id }})</small>
+                                </td>
                                 <td>
                                     <select name="cap1" class="form-select form-select-sm bg-black text-white">
                                         {% for s in all_survivors %}
@@ -61,12 +63,6 @@
                         </tr>
                         {% endif %}
                     {% endfor %}
-
-                    {% if not count %}
-                    <tr>
-                        <td colspan="7" class="text-center text-muted p-4">No rosters found in this league.</td>
-                    </tr>
-                    {% endif %}
                 </tbody>
             </table>
         </div>

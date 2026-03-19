@@ -659,8 +659,7 @@ def admin_manage_all():
 
     leagues = League.query.all()
     all_survivors = Survivor.query.all()
-
-    # Manually fetch all rosters so we don't rely on the 'league.rosters' relationship
+    # Pull all rosters directly to bypass relationship issues
     all_rosters = Roster.query.all()
 
     return render_template('admin_manage.html',
