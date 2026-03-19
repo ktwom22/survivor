@@ -663,8 +663,45 @@ def draft_trends():
                            total_users=total_count)
 
 
-# --- ADMIN MANAGEMENT ROUTES ---
-# --- ADMIN MANAGEMENT ROUTES ---
+@app.route('/admin/fix-by-url')
+def fix_by_url():
+    if not session.get('admin_authenticated'):
+        return "Admin Login Required", 403
+
+    # 1. Pull the data directly from the URL parameters
+    invite_code = request.args.get('invite')
+    username = request.args.get('user')
+
+    # 2. Find the League and User
+    league = League.query.filter_by(invite_code=invite_code).first()
+    user = User.query.filter_by(username=username).first()
+
+    if not league or not user:
+        return f"Error: League ({invite_code}) or User ({username}) not found.", 404
+
+    # 3. Target Roster 16 and Force the Update
+    roster = Roster.query.get(16)
+    if not roster:
+        # Fallback: If 16 doesn't exist, try to find ANY roster for this user/league combo
+        roster = Roster.query.filter_by(user_id=user.id, league_id=league.id).first()
+
+    if roster:
+        roster.user_id = user.id
+        roster.league_id = league.id
+        roster.cap1_id = 2
+        roster.cap2_id = 3
+        roster.cap3_id = 4
+        roster.regular_ids = "7,10,24"
+        roster.is_global = False
+
+        try:
+            db.session.commit()
+            return f"SUCCESS: Roster #{roster.id} updated for {username} in {league.name}."
+        except Exception as e:
+            db.session.rollback()
+            return f"Database Error: {str(e)}"
+
+    return "No roster found to update. Ensure User 10 has joined League 2 first."
 
 @app.route('/admin/manage-all')
 def admin_manage_all():
