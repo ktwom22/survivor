@@ -652,14 +652,21 @@ def draft_trends():
 # --- ADMIN MANAGEMENT ROUTES ---
 # --- ADMIN MANAGEMENT ROUTES ---
 
-@app.route('/admin/manage-all', methods=['GET'])
+@app.route('/admin/manage-all')
 def admin_manage_all():
     if not session.get('admin_authenticated'):
         return redirect(url_for('admin_scoring'))
 
     leagues = League.query.all()
     all_survivors = Survivor.query.all()
-    return render_template('admin_manage.html', leagues=leagues, all_survivors=all_survivors)
+
+    # Manually fetch all rosters so we don't rely on the 'league.rosters' relationship
+    all_rosters = Roster.query.all()
+
+    return render_template('admin_manage.html',
+                           leagues=leagues,
+                           all_survivors=all_survivors,
+                           all_rosters=all_rosters)
 
 
 @app.route('/admin/update_roster/<int:roster_id>', methods=['GET', 'POST'])

@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mt-4" style="background: #000; color: #fff; padding: 20px; border: 2px solid #FFD700; border-radius: 10px;">
+<div class="container mt-4" style="background: #000; color: #fff; padding: 20px; border: 2px solid #FFD700;">
     <h1 class="text-warning mb-4">ROSTER OVERRIDE CENTER</h1>
 
     {% for league in leagues %}
@@ -11,58 +11,62 @@
         <div class="table-responsive">
             <table class="table table-dark table-hover mb-0">
                 <thead>
-                    <tr class="text-muted" style="font-size: 0.9rem;">
+                    <tr>
                         <th>Roster ID</th>
                         <th>User (ID)</th>
-                        <th>Gold (2x)</th>
-                        <th>Silver (1.5x)</th>
-                        <th>Bronze (1.25x)</th>
+                        <th>Gold</th>
+                        <th>Silver</th>
+                        <th>Bronze</th>
                         <th>Regular IDs</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for r in league.rosters %}
-                    <tr>
-                        <td class="align-middle">#{{ r.id }}</td>
-                        <td class="align-middle text-info">
-                            <strong>{{ r.owner.username if r.owner else "Guest" }}</strong>
-                            <small class="text-muted">({{ r.user_id }})</small>
-                        </td>
-
-                        <form action="/admin/update_roster/{{ r.id }}" method="POST">
-                            <td class="align-middle">
-                                <select name="cap1" class="form-select form-select-sm bg-black text-white">
-                                    {% for s in all_survivors %}
-                                    <option value="{{ s.id }}" {% if r.cap1_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td class="align-middle">
-                                <select name="cap2" class="form-select form-select-sm bg-black text-white">
-                                    {% for s in all_survivors %}
-                                    <option value="{{ s.id }}" {% if r.cap2_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td class="align-middle">
-                                <select name="cap3" class="form-select form-select-sm bg-black text-white">
-                                    {% for s in all_survivors %}
-                                    <option value="{{ s.id }}" {% if r.cap3_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td class="align-middle">
-                                <input type="text" name="regular_ids" value="{{ r.regular_ids }}"
-                                       class="form-control form-control-sm bg-dark text-warning"
-                                       placeholder="e.g. 7,10,24">
-                            </td>
-                            <td class="align-middle">
-                                <button type="submit" class="btn btn-warning btn-sm fw-bold">SAVE</button>
-                            </td>
-                        </form>
-                    </tr>
+                    {% set count = [] %}
+                    {% for r in all_rosters %}
+                        {% if r.league_id == league.id %}
+                        {% do count.append(1) %}
+                        <tr>
+                            <form action="/admin/update_roster/{{ r.id }}" method="POST">
+                                <td>#{{ r.id }}</td>
+                                <td>{{ r.owner.username if r.owner else "Guest" }} ({{ r.user_id }})</td>
+                                <td>
+                                    <select name="cap1" class="form-select form-select-sm bg-black text-white">
+                                        {% for s in all_survivors %}
+                                        <option value="{{ s.id }}" {% if r.cap1_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="cap2" class="form-select form-select-sm bg-black text-white">
+                                        {% for s in all_survivors %}
+                                        <option value="{{ s.id }}" {% if r.cap2_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="cap3" class="form-select form-select-sm bg-black text-white">
+                                        {% for s in all_survivors %}
+                                        <option value="{{ s.id }}" {% if r.cap3_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" name="regular_ids" value="{{ r.regular_ids }}" class="form-control form-control-sm bg-dark text-warning">
+                                </td>
+                                <td>
+                                    <button type="submit" class="btn btn-warning btn-sm">SAVE</button>
+                                </td>
+                            </form>
+                        </tr>
+                        {% endif %}
                     {% endfor %}
+
+                    {% if not count %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted p-4">No rosters found in this league.</td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
