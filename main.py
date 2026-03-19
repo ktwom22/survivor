@@ -666,27 +666,30 @@ def admin_manage_all():
                            now=datetime.now().strftime("%I:M %p"))
 
 
-@app.route('/admin/edit_roster/<int:roster_id>', methods=['GET', 'POST'])  # Add GET here
+@app.route('/admin/edit_roster/<int:roster_id>', methods=['GET', 'POST'])
 def admin_edit_roster(roster_id):
     if not session.get('admin_authenticated'):
-        abort(403)
+        return "Not Authenticated", 403
 
     roster = Roster.query.get_or_404(roster_id)
 
     if request.method == 'POST':
         try:
+            # Debug: This will show in your terminal
+            print(f"Updating Roster {roster_id}: Cap1={request.form.get('cap1')}")
+
             roster.cap1_id = int(request.form.get('cap1'))
             roster.cap2_id = int(request.form.get('cap2'))
             roster.cap3_id = int(request.form.get('cap3'))
             roster.regular_ids = request.form.get('regular_ids', "")
+
             db.session.commit()
-            flash(f"Updated Roster #{roster_id}", "success")
+            flash(f"Updated Roster #{roster_id}!", "success")
         except Exception as e:
             db.session.rollback()
+            print(f"Error: {e}")
             flash(f"Error: {str(e)}", "danger")
-        return redirect(url_for('admin_manage_all'))
 
-    # If someone tries to GET the link, just send them back to the dashboard
     return redirect(url_for('admin_manage_all'))
 
 
