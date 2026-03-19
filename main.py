@@ -649,6 +649,22 @@ def draft_trends():
                            total_users=total_count)
 
 
+@app.route('/admin/manage-all')
+def admin_manage_all():
+    # Only allow authenticated admins
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_scoring'))
+
+    # Get all leagues and pre-load their rosters and owners
+    leagues = League.query.all()
+
+    # We also need the survivor list for the edit dropdowns
+    all_survivors = Survivor.query.all()
+
+    return render_template('admin_manage.html',
+                           leagues=leagues,
+                           all_survivors=all_survivors)
+
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
     db.create_all()
@@ -669,6 +685,8 @@ with app.app_context():
         db.session.rollback()
         db.session.execute(text("ALTER TABLE weekly_stat ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
         db.session.commit()
+
+
 
 if __name__ == '__main__':
     # Bind to PORT provided by Railway, default to 8080

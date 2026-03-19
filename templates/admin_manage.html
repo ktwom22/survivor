@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4" style="background: #111; color: #fff; padding: 20px; border: 2px solid #FFD700;">
+    <h1 class="text-warning">LEAGUE & ROSTER OVERRIDE</h1>
+    <p>Current Server Time: {{ now }} (Lock: March 18 @ 8PM EST)</p>
+
+    {% for league in leagues %}
+    <div class="card mb-4 bg-dark border-secondary">
+        <div class="card-header d-flex justify-content-between">
+            <h3 class="text-info">{{ league.name }} (ID: {{ league.id }})</h3>
+            <span class="badge bg-primary">Invite Code: {{ league.invite_code }}</span>
+        </div>
+        <div class="card-body">
+            <table class="table table-dark table-striped">
+                <thead>
+                    <tr>
+                        <th>Roster ID</th>
+                        <th>User</th>
+                        <th>Gold Cap (2x)</th>
+                        <th>Silver (1.5x)</th>
+                        <th>Bronze (1.25x)</th>
+                        <th>Regulars</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in league.rosters %}
+                    <form action="{{ url_for('admin_edit_roster', roster_id=r.id) }}" method="POST">
+                        <tr>
+                            <td>{{ r.id }}</td>
+                            <td><strong>{{ r.owner.username if r.owner else "N/A" }}</strong></td>
+                            
+                            <td>
+                                <select name="cap1" class="form-select form-select-sm">
+                                    {% for s in all_survivors %}
+                                    <option value="{{ s.id }}" {% if r.cap1_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="cap2" class="form-select form-select-sm">
+                                    {% for s in all_survivors %}
+                                    <option value="{{ s.id }}" {% if r.cap2_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="cap3" class="form-select form-select-sm">
+                                    {% for s in all_survivors %}
+                                    <option value="{{ s.id }}" {% if r.cap3_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <input type="text" name="regular_ids" value="{{ r.regular_ids }}" class="form-control form-control-sm">
+                            </td>
+
+                            <td>
+                                <button type="submit" class="btn btn-warning btn-sm">Update</button>
+                            </td>
+                        </tr>
+                    </form>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
