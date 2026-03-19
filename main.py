@@ -652,34 +652,37 @@ def draft_trends():
 # --- ADMIN MANAGEMENT ROUTES ---
 # --- ADMIN MANAGEMENT ROUTES ---
 
-@app.route('/admin/force-fix-16')
-def force_fix_16():
+@app.route('/admin/manage-all', methods=['GET'])
+def admin_manage_all():
     if not session.get('admin_authenticated'):
-        return "Login at /admin/scoring first", 403
+        return redirect(url_for('admin_scoring'))
 
-    # Use a direct query to ensure we find it
-    roster = Roster.query.filter_by(id=16).first()
+    leagues = League.query.all()
+    all_survivors = Survivor.query.all()
+    return render_template('admin_manage.html', leagues=leagues, all_survivors=all_survivors)
 
-    if not roster:
-        # If 16 doesn't exist, let's create it for User 10 in League 2
-        roster = Roster(id=16, user_id=10, league_id=2)
-        db.session.add(roster)
 
-    # Apply the exact IDs you provided
-    roster.user_id = 10
-    roster.league_id = 2
-    roster.cap1_id = 2
-    roster.cap2_id = 3
-    roster.cap3_id = 4
-    roster.regular_ids = "7,10,24"
-    roster.is_global = False  # Ensure it's in the league, not global
+@app.route('/admin/update_roster/<int:roster_id>', methods=['POST'])
+def admin_update_roster(roster_id):
+    if not session.get('admin_authenticated'):
+        return "Unauthorized", 403
+
+    roster = Roster.query.get_or_404(roster_id)
 
     try:
+        # Force cast to integers to prevent "No Tribe" errors in helpers
+        roster.cap1_id = int(request.form.get('cap1'))
+        roster.cap2_id = int(request.form.get('cap2'))
+        roster.cap3_id = int(request.form.get('cap3'))
+        roster.regular_ids = request.form.get('regular_ids', "")
+
         db.session.commit()
-        return "SUCCESS: Roster 16 is now hard-coded for User 10. Refresh the dashboard."
+        flash(f"Roster {roster_id} updated successfully!", "success")
     except Exception as e:
         db.session.rollback()
-        return f"Error: {str(e)}"
+        flash(f"Error: {str(e)}", "danger")
+
+    return redirect(url_for('admin_manage_all'))
 
 # --- SAFE MIGRATION & STARTUP ---
 with app.app_context():
