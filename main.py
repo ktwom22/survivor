@@ -532,34 +532,30 @@ def save_global_draft():
 
 @app.route('/player/<string:slug>')
 def player_profile(slug):
+    # 1. Fetch the player
     if slug.isdigit():
         p = Survivor.query.get_or_404(int(slug))
     else:
         p = Survivor.query.filter_by(slug=slug).first_or_404()
 
-    # 1. Sort the weekly stats so they appear in order (Week 1, Week 2, etc.)
-    # Note: 'stats' is likely your relationship name in the Survivor model
-    sorted_stats = sorted(p.stats, key=lambda x: x.week)
+    # 2. FORCE RECALCULATION (The "Source of Truth" fix)
+    # This ensures that even if the DB total is wrong, the profile shows the right math
+    p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in p.stats)
+    db.session.commit()
 
-    # 2. Build a list of dictionaries that include the calculated score for each week
-    weekly_breakdown = []
-    for s in sorted_stats:
-        weekly_breakdown.append({
-            'week': s.week,
-            'points': s.calculate_for_league(POINTS_CONFIG), # Uses your scoring logic
-            'obj': s # This lets us access checkboxes (s.immunity, s.journey, etc.)
-        })
-
+    # 3. Build summary totals for the top cards
     totals = {
         'surv': sum(1 for s in p.stats if s.survived),
         'imm': sum(1 for s in p.stats if s.immunity),
+        'jrn': sum(1 for s in p.stats if s.journey),
+        'cry': sum(1 for s in p.stats if s.crying),
         'score': round(p.points, 1)
     }
 
     return render_template('player_profile.html',
                            p=p,
                            totals=totals,
-                           weekly_breakdown=weekly_breakdown)
+                           config=POINTS_CONFIG) # Must pass this for weekly rows
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
     if code_or_id.isdigit():

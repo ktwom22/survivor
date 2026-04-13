@@ -7,7 +7,7 @@
 <div class="row justify-content-center">
     <div class="col-md-11 col-lg-10">
 
-        <div class="pro-card border-accent p-0 overflow-hidden mb-4 shadow-lg">
+        <div class="pro-card border-accent p-0 overflow-hidden mb-4 shadow-lg bg-black">
             <div class="row g-0">
                 <div class="col-md-5 position-relative">
                     <img src="{{ p.image_url }}" alt="{{ p.name }}" class="h-100 w-100"
@@ -15,23 +15,23 @@
 
                     {% if p.is_out %}
                     <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-                         style="background: rgba(0,0,0,0.6); backdrop-filter: grayscale(1);">
+                         style="background: rgba(0,0,0,0.6); backdrop-filter: grayscale(1); z-index: 2;">
                         <h1 class="fw-900 text-danger border border-danger p-3 rotate-n15" style="letter-spacing: 10px; border-width: 5px !important; text-shadow: 2px 2px 10px black;">THE TRIBE HAS SPOKEN</h1>
                     </div>
                     {% endif %}
                 </div>
 
-                <div class="col-md-7 p-4 p-lg-5 d-flex flex-column bg-black">
+                <div class="col-md-7 p-4 p-lg-5 d-flex flex-column">
                     <div class="mb-auto">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="text-accent fw-900 uppercase ls-2 mb-1">Survivor Legend</h6>
-                                <h1 class="display-3 fw-900 uppercase mb-0 lh-1">{{ p.name }}</h1>
+                                <h1 class="display-3 fw-900 uppercase mb-0 lh-1 text-white">{{ p.name }}</h1>
                                 <p class="lead text-white-50 fw-bold uppercase ls-1 mt-2">Season: {{ p.season }}</p>
                             </div>
                             <div class="text-end">
                                 <div class="x-small fw-900 text-white-50 uppercase">Season Total</div>
-                                <div class="display-4 fw-900 text-accent">{{ totals.score|round(1) }}</div>
+                                <div class="display-4 fw-900 text-accent" id="total-score-display">{{ p.points|round(1) }}</div>
                             </div>
                         </div>
 
@@ -44,13 +44,10 @@
                     </div>
 
                     <div class="row g-2 mt-4">
-                        {% set stats_summary = [
-                            ('Survived', totals.surv),
-                            ('Immunity', totals.imm),
-                            ('Journey', p.stats|selectattr('journey')|list|length),
-                            ('Crying', p.stats|selectattr('crying')|list|length)
-                        ] %}
-                        {% for label, val in stats_summary %}
+                        {% set jrn_count = p.stats|selectattr('journey')|list|length %}
+                        {% set cry_count = p.stats|selectattr('crying')|list|length %}
+
+                        {% for label, val in [('Survived', totals.surv), ('Immunity', totals.imm), ('Journey', jrn_count), ('Crying', cry_count)] %}
                         <div class="col-6 col-sm-3">
                             <div class="border border-secondary p-2 text-center rounded bg-dark-hover transition">
                                 <div class="x-small fw-900 text-white-50 uppercase" style="font-size: 0.6rem;">{{ label }}</div>
@@ -63,13 +60,13 @@
             </div>
         </div>
 
-        <div class="pro-card p-0 border-secondary overflow-hidden">
-            <div class="p-3 bg-dark d-flex justify-content-between align-items-center">
-                <h6 class="fw-900 m-0 text-uppercase ls-2">Weekly Performance Log</h6>
-                <span class="badge bg-black border border-secondary text-white-50 uppercase small">Live Breakdown</span>
+        <div class="pro-card p-0 border-secondary overflow-hidden bg-black">
+            <div class="p-3 bg-dark d-flex justify-content-between align-items-center border-bottom border-secondary">
+                <h6 class="fw-900 m-0 text-uppercase ls-2 text-white">Weekly Performance Log</h6>
+                <span class="badge bg-black border border-secondary text-white-50 uppercase small">Data Verified</span>
             </div>
             <div class="table-responsive">
-                <table class="table table-dark table-hover m-0 align-middle text-center border-top border-secondary">
+                <table class="table table-dark table-hover m-0 align-middle text-center">
                     <thead class="bg-black text-muted x-small uppercase">
                         <tr>
                             <th class="text-start ps-4 py-3">Week</th>
@@ -86,7 +83,7 @@
                     <tbody class="small">
                         {% for s in p.stats|sort(attribute='week') %}
                         <tr>
-                            <td class="text-start ps-4 fw-900 uppercase">Week {{ s.week }}</td>
+                            <td class="text-start ps-4 fw-900 uppercase text-white-50">Week {{ s.week }}</td>
                             <td>{{ "✅" if s.survived else "—" }}</td>
                             <td>{{ "🏆" if s.immunity else "—" }}</td>
                             <td>{{ "⭐" if s.advantage else "—" }}</td>
@@ -102,21 +99,18 @@
                                 {% else %}<span class="text-white-50">—</span>{% endif %}
                             </td>
                             <td class="bg-dark text-accent fw-900">
-                                {# Pass the config from your route to ensure Journey/Crying points are added #}
-                                {{ s.calculate_for_league(config)|round(1) }}
+                                {# Ensure config is passed. Fallback to 0 if calculation fails #}
+                                {% if config %}
+                                    {{ s.calculate_for_league(config)|round(1) }}
+                                {% else %}
+                                    <span class="text-danger small">Config Error</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        <div class="mt-3 text-center">
-            <p class="x-small text-white-50 uppercase ls-1">
-                Curious about the competition?
-                <a href="/global" class="text-accent text-decoration-none fw-bold hover-underline">View Global Leaderboard &rarr;</a>
-            </p>
         </div>
 
         <div class="mt-4 mb-5 d-flex gap-2">
@@ -137,28 +131,18 @@
     .lh-1 { line-height: 1; }
     .table-responsive::-webkit-scrollbar { height: 6px; }
     .table-responsive::-webkit-scrollbar-thumb { background: var(--accent); }
-    .hover-underline:hover { text-decoration: underline !important; }
-
-    .btn-accent:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(255, 204, 0, 0.4);
-    }
+    .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 204, 0, 0.4); }
 </style>
 
 <script>
 function sharePlayerStats() {
     const shareData = {
-        title: '{{ p.name }} | Survivor 50 Fantasy Stats',
-        text: 'Check out the performance log for {{ p.name }} on Drop Buffs!',
+        title: '{{ p.name }} | Survivor 50 Stats',
+        text: 'Check out the performance log for {{ p.name }}!',
         url: window.location.href
     };
-
-    if (navigator.share) {
-        navigator.share(shareData).catch(console.error);
-    } else {
-        navigator.clipboard.writeText(window.location.href);
-        alert("Link copied to clipboard!");
-    }
+    if (navigator.share) { navigator.share(shareData); }
+    else { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }
 }
 </script>
 
