@@ -537,14 +537,29 @@ def player_profile(slug):
     else:
         p = Survivor.query.filter_by(slug=slug).first_or_404()
 
+    # 1. Sort the weekly stats so they appear in order (Week 1, Week 2, etc.)
+    # Note: 'stats' is likely your relationship name in the Survivor model
+    sorted_stats = sorted(p.stats, key=lambda x: x.week)
+
+    # 2. Build a list of dictionaries that include the calculated score for each week
+    weekly_breakdown = []
+    for s in sorted_stats:
+        weekly_breakdown.append({
+            'week': s.week,
+            'points': s.calculate_for_league(POINTS_CONFIG), # Uses your scoring logic
+            'obj': s # This lets us access checkboxes (s.immunity, s.journey, etc.)
+        })
+
     totals = {
         'surv': sum(1 for s in p.stats if s.survived),
         'imm': sum(1 for s in p.stats if s.immunity),
         'score': round(p.points, 1)
     }
-    return render_template('player_profile.html', p=p, totals=totals)
 
-
+    return render_template('player_profile.html',
+                           p=p,
+                           totals=totals,
+                           weekly_breakdown=weekly_breakdown)
 @app.route('/league/<code_or_id>/download_rosters')
 def download_rosters(code_or_id):
     if code_or_id.isdigit():
