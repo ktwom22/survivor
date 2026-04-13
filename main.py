@@ -669,7 +669,6 @@ def force_roster_16():
         return "Admin Login Required", 403
 
     # 1. Manually find the User and League by their IDs
-    # User ID 10 and League ID 2 (Comeonin)
     user = User.query.get(10)
     league = League.query.get(2)
 
@@ -679,11 +678,9 @@ def force_roster_16():
     # 2. Force the Roster 16 update
     roster = Roster.query.get(16)
     if not roster:
-        # Create it if it somehow vanished
         roster = Roster(id=16, user_id=10, league_id=2)
         db.session.add(roster)
 
-    # Force all connections and data
     roster.user_id = 10
     roster.league_id = 2
     roster.cap1_id = 2
@@ -704,16 +701,14 @@ def force_roster_16():
 with app.app_context():
     db.create_all()
 
-    # 1. Check/Add slug column to Survivor
     try:
         db.session.execute(text("SELECT slug FROM survivor LIMIT 1"))
     except Exception:
         db.session.rollback()
         db.session.execute(text("ALTER TABLE survivor ADD COLUMN slug VARCHAR(100) UNIQUE"))
         db.session.commit()
-        sync_players()  # Run sync to populate slugs for existing players
+        sync_players()
 
-    # 2. Check/Add is_locked column to WeeklyStat
     try:
         db.session.execute(text("SELECT is_locked FROM weekly_stat LIMIT 1"))
     except Exception:
@@ -722,8 +717,6 @@ with app.app_context():
         db.session.commit()
 
 
-
 if __name__ == '__main__':
-    # Bind to PORT provided by Railway, default to 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
