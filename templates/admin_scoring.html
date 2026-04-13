@@ -3,25 +3,36 @@
 <div class="container-fluid py-3 px-2">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-2">
         <h2 class="fw-900 uppercase text-accent m-0 fs-4">Admin Scoring</h2>
-        <form action="{{ url_for('admin_scoring') }}" method="POST" class="w-100 w-md-auto">
-            <input type="hidden" name="sync_all" value="1">
-            <button type="submit" class="btn btn-outline-light btn-sm fw-900 uppercase ls-1 w-100">Sync Cast</button>
-        </form>
+
+        <div class="d-flex gap-2 w-100 w-md-auto">
+            <form action="{{ url_for('admin_scoring') }}" method="POST" class="flex-fill">
+                <input type="hidden" name="sync_all" value="1">
+                <button type="submit" class="btn btn-outline-light btn-sm fw-900 uppercase ls-1 w-100">Sync Cast</button>
+            </form>
+
+            {% set any_locked = current_stats.values()|selectattr('is_locked', 'equalto', True)|list|length > 0 %}
+            {% if any_locked %}
+            <form action="{{ url_for('admin_scoring') }}" method="POST" class="flex-fill">
+                <input type="hidden" name="week_num" value="{{ week }}">
+                <button type="submit" name="unlock_week" value="1" class="btn btn-warning btn-sm fw-900 uppercase ls-1 w-100">🔓 Unlock Week {{ week }}</button>
+            </form>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="pro-card p-2 p-md-4 border-secondary bg-black">
-        <form action="{{ url_for('admin_scoring') }}" method="POST">
+    <div class="pro-card p-2 p-md-4 border-secondary bg-black shadow-lg">
+        <form action="{{ url_for('admin_scoring') }}" method="POST" id="mainScoringForm">
             <div class="row mb-3 align-items-end g-2">
                 <div class="col-6 col-md-3">
-                    <label class="x-small fw-900 uppercase text-white-50 mb-1 d-block">Week #</label>
-                    <input type="number" name="week_num" id="weekNum" class="form-control bg-black text-white border-secondary"
+                    <label class="x-small fw-900 uppercase text-white-50 mb-1 d-block">Week Selection</label>
+                    <input type="number" name="week_num" id="weekNum" class="form-control bg-black text-white border-secondary fw-bold"
                            value="{{ week }}" required
                            onchange="window.location.href='{{ url_for('admin_scoring') }}?week=' + this.value">
                 </div>
                 <div class="col-12 col-md-9 text-md-end">
                     <div class="d-flex flex-wrap gap-1 justify-content-md-end">
                         {% for key, val in config.items() %}
-                            <span class="badge bg-dark border border-secondary" style="font-size: 0.55rem;">
+                            <span class="badge bg-dark border border-secondary" style="font-size: 0.6rem; padding: 0.4rem;">
                                 {{ key[:5]|upper }}: {{ val }}
                             </span>
                         {% endfor %}
@@ -29,19 +40,19 @@
                 </div>
             </div>
 
-            <div class="table-responsive border-top border-secondary" style="max-height: 65vh; overflow-y: auto;">
+            <div class="table-responsive border-top border-secondary" style="max-height: 60vh; overflow-y: auto;">
                 <table class="table table-dark table-hover align-middle m-0" id="scoringTable">
                     <thead class="sticky-top bg-black" style="z-index: 10;">
-                        <tr class="x-small fw-900 uppercase ls-1 border-bottom border-white">
+                        <tr class="x-small fw-900 uppercase ls-1 border-bottom border-white text-white-50">
                             <th class="sticky-col bg-black py-3">Survivor</th>
-                            <th class="text-center">Pts</th>
+                            <th class="text-center text-white">Total</th>
                             <th class="text-center text-danger">Out</th>
                             <th class="text-center">Surv</th>
                             <th class="text-center">Imm</th>
-                            <th class="text-center">Rew</th>
                             <th class="text-center text-accent">Adv+</th>
                             <th class="text-center text-info">JRN</th>
                             <th class="text-center text-warning">PKT</th>
+                            <th class="text-center">Rew</th>
                             <th class="text-center">Mrg</th>
                             <th class="text-center">F5</th>
                             <th class="text-center">F3</th>
@@ -54,17 +65,17 @@
                         {% for s in survivors if not s.is_out %}
                         {% set stat = current_stats.get(s.id) %}
                         <tr class="border-bottom border-secondary-subtle">
-                            <td class="sticky-col bg-black fw-bold text-white small">{{ s.name.split(' ')[0] }}</td>
-                            <td class="text-center text-accent fw-bold small" id="total-{{ s.id }}">{{ s.points|round(1) }}</td>
+                            <td class="sticky-col bg-black fw-bold text-white small">{{ s.name }}</td>
+                            <td class="text-center text-accent fw-bold fs-6" id="total-{{ s.id }}">{{ s.points|round(1) }}</td>
 
                             <td class="text-center p-2"><input type="checkbox" name="voted_out_{{ s.id }}" class="form-check-input border-danger"></td>
 
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="survived" class="form-check-input ajax-score" {{ 'checked' if stat and stat.survived else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="immunity" class="form-check-input ajax-score" {{ 'checked' if stat and stat.immunity else '' }}></td>
-                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="reward" class="form-check-input ajax-score" {{ 'checked' if stat and stat.reward else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="advantage" class="form-check-input ajax-score border-accent" {{ 'checked' if stat and stat.advantage else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="journey" class="form-check-input ajax-score border-info" {{ 'checked' if stat and stat.journey else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="in_pocket" class="form-check-input ajax-score border-warning" {{ 'checked' if stat and stat.in_pocket else '' }}></td>
+                            <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="reward" class="form-check-input ajax-score" {{ 'checked' if stat and stat.reward else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="merge" class="form-check-input ajax-score" {{ 'checked' if stat and stat.merge else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f5" class="form-check-input ajax-score" {{ 'checked' if stat and stat.f5 else '' }}></td>
                             <td class="text-center p-2"><input type="checkbox" data-pid="{{ s.id }}" data-cat="f3" class="form-check-input ajax-score" {{ 'checked' if stat and stat.f3 else '' }}></td>
@@ -77,25 +88,31 @@
                 </table>
             </div>
 
-            <div class="mt-3 sticky-bottom bg-black py-2">
-                <button type="submit" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2 shadow-lg">Finalize & Lock Week 🔒</button>
+            <div class="mt-3 sticky-bottom bg-black py-2 border-top border-secondary">
+                <button type="submit" name="lock_week" value="1" class="btn btn-accent w-100 fw-900 py-3 uppercase ls-2 shadow-lg">Lock Results & Finalize Week {{ week }} 🔒</button>
             </div>
         </form>
     </div>
 </div>
 
 <style>
-    .sticky-col { position: sticky; left: 0; z-index: 5; border-right: 2px solid #ffffff !important; min-width: 80px; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .form-check-input { width: 1.4rem; height: 1.4rem; background-color: #000; border: 2px solid #555; margin: 0; cursor: pointer; }
-    .form-check-input.border-warning:checked { background-color: #ffc107; border-color: #fff; }
-    .form-check-input:checked { background-color: var(--accent); border-color: #fff; }
-    td { cursor: pointer; transition: background 0.2s; }
-    td:hover { background: rgba(255, 255, 255, 0.1) !important; }
-    .table-responsive::-webkit-scrollbar { height: 6px; }
-    .table-responsive::-webkit-scrollbar-thumb { background: var(--accent); }
+    .sticky-col { position: sticky; left: 0; z-index: 5; border-right: 2px solid var(--accent) !important; min-width: 100px; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background-color: #000; }
+    .form-check-input { width: 1.5rem; height: 1.5rem; background-color: #000; border: 2px solid #444; margin: 0; cursor: pointer; border-radius: 4px; }
+    .form-check-input:checked { background-color: var(--accent) !important; border-color: #fff !important; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important; }
+    .form-check-input.border-warning:checked { background-color: #ffc107 !important; }
+    .form-check-input.border-info:checked { background-color: #0dcaf0 !important; }
+    .form-check-input.border-danger:checked { background-color: #dc3545 !important; }
+
+    td { cursor: pointer; transition: background 0.2s; height: 50px; }
+    tr:hover td { background: rgba(255, 255, 255, 0.05) !important; }
+
+    .table-responsive::-webkit-scrollbar { height: 8px; }
+    .table-responsive::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    .table-responsive::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 </style>
 
 <script>
+    // AJAX SCORE TOGGLE
     document.querySelectorAll('.ajax-score').forEach(input => {
         input.addEventListener('change', async function() {
             const pId = this.dataset.pid;
@@ -103,26 +120,45 @@
             const isChecked = this.checked;
             const week = document.getElementById('weekNum').value;
 
+            // Visual feedback - Dim the total while updating
+            const totalEl = document.getElementById(`total-${pId}`);
+            totalEl.style.opacity = '0.5';
+
             try {
                 const response = await fetch("{{ url_for('admin_scoring') }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ player_id: pId, category: cat, state: isChecked, week: week })
+                    body: JSON.stringify({
+                        player_id: pId,
+                        category: cat,
+                        state: isChecked,
+                        week: week
+                    })
                 });
                 const result = await response.json();
+
                 if (result.success) {
-                    document.getElementById(`total-${pId}`).innerText = result.new_total;
+                    totalEl.innerText = result.new_total;
+                } else {
+                    alert("Error: " + (result.error || "Update failed"));
+                    this.checked = !isChecked; // Revert
                 }
             } catch (err) {
-                this.checked = !isChecked;
+                console.error("Scoring Error:", err);
+                this.checked = !isChecked; // Revert on network failure
+            } finally {
+                totalEl.style.opacity = '1';
             }
         });
     });
 
+    // CLICKABLE ROWS FOR EASE OF USE
     document.querySelectorAll('#scoringTable td').forEach(cell => {
         cell.addEventListener('click', function(e) {
+            // Don't trigger if clicking the name or the checkbox directly
             if (this.classList.contains('sticky-col') || this.id.startsWith('total-')) return;
             if (e.target.type === 'checkbox') return;
+
             const cb = this.querySelector('input[type="checkbox"]');
             if (cb) {
                 cb.checked = !cb.checked;

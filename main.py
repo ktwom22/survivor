@@ -581,14 +581,14 @@ def download_rosters(code_or_id):
 
 @app.route('/admin/scoring', methods=['GET', 'POST'])
 def admin_scoring():
-    # 1. AUTHENTICATION CHECK
+    # 1. AUTHENTICATION
     if not session.get('admin_authenticated'):
         if request.method == 'POST' and request.form.get('admin_pw') == os.getenv("ADMIN_PASSWORD", "JeffP"):
             session['admin_authenticated'] = True
             return redirect(url_for('admin_scoring'))
         return render_template('admin_login.html')
 
-    # 2. AJAX LIVE SCORING UPDATE
+    # 2. AJAX LIVE SCORING (The Checkbox Toggles)
     if request.method == 'POST' and request.is_json:
         data = request.json
         p_id = data.get('player_id')
@@ -596,49 +596,50 @@ def admin_scoring():
         state = data.get('state')
         wn = int(data.get('week', 1))
 
-        # Fetch or create the stat record for this specific week
         stat = WeeklyStat.query.filter_by(player_id=p_id, week=wn).first() or WeeklyStat(player_id=p_id, week=wn)
-
         if not stat.id:
             db.session.add(stat)
 
-        # Guard clause for locked weeks
-        if stat.is_locked:
-            return jsonify({"success": False, "error": "This week is locked from further changes."}), 403
+        # FIX: Admin bypasses the lock.
+        # We only block if somehow a non-admin session reached this point.
+        if stat.is_locked and not session.get('admin_authenticated'):
+            return jsonify({"success": False, "error": "Locked"}), 403
 
-        # Update the specific stat attribute (e.g., 'immunity')
         if hasattr(stat, cat):
             setattr(stat, cat, state)
             db.session.commit()
 
-            # RECALCULATION: Update the Survivor's total points across ALL weeks
+            # TRIGGER RECALCULATION
+            # This pulls EVERY week for the player to ensure the total is absolute source-of-truth
             p = db.session.get(Survivor, p_id)
             all_stats = WeeklyStat.query.filter_by(player_id=p_id).all()
-
-            # Sum using the global POINTS_CONFIG
             p.points = sum(s.calculate_for_league(POINTS_CONFIG) for s in all_stats)
+
             db.session.commit()
+            return jsonify({"success": True, "new_total": round(p.points, 1)})
 
-            return jsonify({
-                "success": True,
-                "new_total": round(p.points, 1),
-                "player_name": p.name
-            })
-
-        return jsonify({"success": False, "error": "Invalid category"}), 400
+        return jsonify({"success": False}), 400
 
     # 3. GET REQUEST & BULK ACTIONS
     survivors = Survivor.query.all()
     view_week = int(request.form.get('week_num') or request.args.get('week', 1))
 
     if request.method == 'POST':
-        # Bulk Sync from Google Sheet
+        # Action: Sync from Google Sheet
         if 'sync_all' in request.form:
             sync_players()
-            flash("Cast list and player data synced from master sheet.", "success")
+            flash("Cast synced from master sheet.", "success")
 
-        # Bulk Lock Week & Mark Eliminations
-        else:
+        # Action: UNLOCK the entire week
+        elif 'unlock_week' in request.form:
+            stats_list = WeeklyStat.query.filter_by(week=view_week).all()
+            for s in stats_list:
+                s.is_locked = False
+            db.session.commit()
+            flash(f"Week {view_week} has been UNLOCKED.", "success")
+
+        # Action: LOCK the entire week & Mark Out
+        elif 'lock_week' in request.form:
             for s in survivors:
                 if request.form.get(f'voted_out_{s.id}'):
                     s.is_out = True
@@ -646,11 +647,10 @@ def admin_scoring():
                 stat = WeeklyStat.query.filter_by(player_id=s.id, week=view_week).first()
                 if stat:
                     stat.is_locked = True
-
             db.session.commit()
-            flash(f"Week {view_week} data has been finalized and locked.", "danger")
+            flash(f"Week {view_week} locked!", "danger")
 
-    # Load stats for the current view to populate the table
+    # Final data prep for the template
     stats_list = WeeklyStat.query.filter_by(week=view_week).all()
     current_stats = {s.player_id: s for s in stats_list}
 
